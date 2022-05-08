@@ -1,2 +1,2 @@
-# blind-estimation-of-acoustics-parameters
+# Blind estimation of acoustics parameters
 Tesis about blind estimation of acoustics parameters
