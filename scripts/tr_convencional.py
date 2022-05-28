@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import stats
+import sys
 
 def tr_convencional(raw_signal, fs, rt='t30'):  # pylint: disable=too-many-locals
     """
@@ -28,11 +29,16 @@ def tr_convencional(raw_signal, fs, rt='t30'):  # pylint: disable=too-many-local
         end = -10.0
         factor = 6.0
 
+    #Recorto la señal desde el máximo en adelante:
+    in_max = np.where(abs(raw_signal) == np.max(abs(raw_signal)))[0]  # Windows signal from its maximum onwards.
+    in_max = int(in_max[0])
+    raw_signal = raw_signal[(in_max):]
+    
     abs_signal = np.abs(raw_signal) / np.max(np.abs(raw_signal))
 
     # Schroeder integration
     sch = np.cumsum(abs_signal[::-1]**2)[::-1]
-    sch_db = 10.0 * np.log10(sch / np.max(sch))
+    sch_db = 10.0 * np.log10(sch / np.max(sch) + sys.float_info.epsilon)
 
     # Linear regression
     sch_init = sch_db[np.abs(sch_db - init).argmin()]
