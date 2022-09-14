@@ -7,6 +7,7 @@ def preprocessing(files_name, band):
     T30 = [] #Genero una lista vacía
 
     i=0
+    count=1
     for file in files_name:
         data, fs = load(file, sr=16000)
 
@@ -17,6 +18,10 @@ def preprocessing(files_name, band):
         Tr = round(float(Tr.split('Tr')[-1]), 1)
         T30.append( Tr ) #Cargo el T30 del audio
         
+        if count%100:
+            print(f'Se calcularon {count} audios')
+        
+        count+=1
         i+=1
         
     return tae, T30

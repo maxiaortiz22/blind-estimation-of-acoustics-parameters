@@ -4,7 +4,7 @@ from random import randrange
 def syntheticRIR(Rt, fs):
   # Reconstruir una RIR con el método de schroeder a partir de conocer el tiempo de reverberación
 
-  t = np.arange(0, int(Rt+1), 1/fs)
+  t = np.arange(0, Rt+0.5, 1/fs)
   y = np.e**((-6.9*t)/Rt) # Creo una exponencial decreciente
 
   seed = randrange(int(2**32))
@@ -14,4 +14,4 @@ def syntheticRIR(Rt, fs):
 
   y = y*n #Multiplico el ruido por la señal
 
-  return y/max(y), seed
+  return y/np.max(np.abs(y)), seed

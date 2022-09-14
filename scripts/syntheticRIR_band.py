@@ -30,4 +30,4 @@ def syntheticRIR_band(Rt, fs, fc):
   z = y*n #Multiplico el ruido por la señal
   y = z + M*n #Agrego un poco de ruido de fondo a la señal
 
-  return y/max(y)
+  return y/np.max(np.abs(y))

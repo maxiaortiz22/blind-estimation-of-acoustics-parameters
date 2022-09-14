@@ -32,7 +32,7 @@ def TAE(data, fs, octave_band):
   #Downsampleo la señal:
   tae = resample(tae, orig_sr=fs, target_sr=40)
 
-  tae = tae/np.max(tae)
+  tae = tae/np.max(np.abs(tae))
 
   #Si el audio tiene 5 [s] de duración y 16k de frec de sampleo, el tae debería ser de 200!
   assert(tae.size==200)
