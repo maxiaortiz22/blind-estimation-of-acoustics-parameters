@@ -1,0 +1,21 @@
+# Project files
+#data
+.vscode
+#data/
+#data/RIRs/*.wav
+results/
+dataframes/*.csv
+
+# Python
+*__pycache__*
+*.ipynb_checkpoints
+*.npy
+*.pyc
+
+# vim
+*.swp
+*.swo
+
+# Audio files
+#*.wav
+#*.WAV
