@@ -22,7 +22,7 @@ for palabra in palabras:
     name = palabra.split('.wav')[0]
     name = name[5:]
 
-    filtered_audios = bandpass_filtered_signals(data, fs, 4, type='third octave band')
+    filtered_audios = bandpass_filtered_signals(data, fs, 4, type='octave band')
 
     for i, band in enumerate(bandas):
 
@@ -48,5 +48,5 @@ df = pd.DataFrame(data= {'Audio':names_df,
                         'C80 [dB]':c80_list,
                         'D50 [%]':d50_list})
 
-#df.to_csv('Parámetros python.csv', encoding = "utf-8",index=False)
-df.to_excel('Parámetros python tercios.xlsx', encoding = "utf-8",index=False)
+df.to_excel('Parámetros python.xlsx', encoding = "utf-8",index=False)
+#df.to_excel('Parámetros python tercios.xlsx', encoding = "utf-8",index=False)
