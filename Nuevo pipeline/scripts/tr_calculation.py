@@ -9,7 +9,7 @@ start_time = time.time()
 
 #IMPLEMENTAR UNA FORMA DE GENERAR LOS FILTROS UNA SOLA VEZ PARA OPTIMIZAR LOS CÁLCULOS
 
-files = glob.glob('../data/RIRs/*.wav')
+files = glob.glob('../data/Descartados/*.wav')
 
 bands = [125, 250, 500, 1000, 2000, 4000, 8000]
 #data, fs = load(f'../data/RIRs/sintetica_Seed9756433_Tr1.5.wav', sr=16000) #Funciona
@@ -24,7 +24,13 @@ for file in files:
 
     for i, band in enumerate(bands):
         print(band)
-        t30 = tr_lundeby(filtered_audios[i], fs)
+        
+        try:
+            t30 = tr_lundeby(filtered_audios[i], fs)
+        except ValueError as err:
+            print(err.args)
+            continue
+
         print(t30)
 
 print("--- %s seconds ---" % (time.time() - start_time))

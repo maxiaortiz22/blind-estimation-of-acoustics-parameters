@@ -100,15 +100,21 @@ def lundeby(y_power, Fs, Ts):
     ruido_dB = 10 * np.log10(
         np.sum(y_power[round(0.9 * len(y_power)):len(y_power)]) / (0.1 * len(y_power)) / np.max(y_power)
                 + sys.float_info.epsilon )
-    #print(f'ruido_dB: {ruido_dB}')
+    print(f'ruido_dB: {ruido_dB}')
     y_promediodB = 10 * np.log10(y_promedio / np.max(y_power) + sys.float_info.epsilon)
 
-    if ruido_dB > -20:  # Insufficient S/N ratio to perform Lundeby
-        raise ValueError('Insufficient S/N ratio to perform Lundeby.')
+    max_ruido_dB = -45 # CAMBIAR ESTO COMO VARIABLE DE ENTRADA!!!!!!!!!!!!
+    if ruido_dB > max_ruido_dB:  # Insufficient S/N ratio to perform Lundeby
+        raise ValueError(f'Insufficient S/N ratio to perform Lundeby. Need at least {max_ruido_dB} dB')
 
     # Decay slope is estimated from a linear regression between the time interval that contains the maximum of the
     # input signal (0 dB) and the first interval 10 dB above the initial noise level
     r = int(np.max(np.argwhere(y_promediodB > ruido_dB + 10)))
+    print(f'r: {r}')
+
+    if r <= 0:
+        raise ValueError('No hay valor de la señal que esté 10 dB por encima del ruido')
+
     m, c, rectacuadmin = leastsquares(eje_tiempo[0:r], y_promediodB[0:r])
     cruce = (ruido_dB - c) / m
     #print(f'cruce: {cruce}')
