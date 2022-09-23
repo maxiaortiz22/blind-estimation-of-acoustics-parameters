@@ -3,7 +3,7 @@
 .vscode
 #data/
 #data/RIRs/*.wav
-results/
+#results/
 dataframes/*.csv
 
 # Python

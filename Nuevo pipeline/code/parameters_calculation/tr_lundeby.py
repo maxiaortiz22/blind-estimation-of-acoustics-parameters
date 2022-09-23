@@ -3,6 +3,25 @@ import sys
 import math
 from scipy import stats
 
+class NoiseError(Exception):
+    def __init__(self, *args):
+        if args:
+            self.message = args[0]
+        else:
+            self.message = None
+
+    def __str__(self):
+        print('calling str')
+        if self.message:
+            return 'MyCustomError, {0} '.format(self.message)
+        else:
+            return 'MyCustomError has been raised'
+
+
+# raise MyCustomError
+
+#raise MyCustomError('We have a problem')
+
 def leastsquares(x, y):
     """Given two vectors x and y of equal dimension, calculates
     the slope and y intercept of the y2 = c + m*x slope, obtained
@@ -55,7 +74,7 @@ def tr_convencional(raw_signal, fs, rt='t30'):  # pylint: disable=too-many-local
         factor = 6.0
 
     #Recorto la señal desde el máximo en adelante:
-    in_max = np.where(abs(raw_signal) == np.max(abs(raw_signal)))[0]  # Windows signal from its maximum onwards.
+    in_max = np.where(np.abs(raw_signal) == np.max(np.abs(raw_signal)))[0]  # Windows signal from its maximum onwards.
     in_max = int(in_max[0])
     raw_signal = raw_signal[(in_max):]
     
@@ -63,7 +82,7 @@ def tr_convencional(raw_signal, fs, rt='t30'):  # pylint: disable=too-many-local
 
     # Schroeder integration
     sch = np.cumsum(abs_signal[::-1]**2)[::-1]
-    sch_db = 10.0 * np.log10(sch / np.max(sch) + sys.float_info.epsilon)
+    sch_db = 10.0 * np.log10(sch / np.max(np.abs(sch)) + sys.float_info.epsilon)
 
     # Linear regression
     sch_init = sch_db[np.abs(sch_db - init).argmin()]
@@ -81,7 +100,7 @@ def tr_convencional(raw_signal, fs, rt='t30'):  # pylint: disable=too-many-local
 
     return t60
 
-def lundeby(y_power, Fs, Ts):
+def lundeby(y_power, Fs, Ts, max_ruido_dB):
     """Given IR response "y" and samplerate "Fs" function returns upper integration limit of
     Schroeder's integral. Window length in ms "Ts" indicates window sized of the initial averaging of the input signal,
     Luneby recommends this value to be in the 10 - 50 ms range."""
@@ -100,17 +119,18 @@ def lundeby(y_power, Fs, Ts):
     ruido_dB = 10 * np.log10(
         np.sum(y_power[round(0.9 * len(y_power)):len(y_power)]) / (0.1 * len(y_power)) / np.max(y_power)
                 + sys.float_info.epsilon )
-    print(f'ruido_dB: {ruido_dB}')
+    #print(f'ruido_dB: {ruido_dB}')
     y_promediodB = 10 * np.log10(y_promedio / np.max(y_power) + sys.float_info.epsilon)
 
     max_ruido_dB = -45 # CAMBIAR ESTO COMO VARIABLE DE ENTRADA!!!!!!!!!!!!
     if ruido_dB > max_ruido_dB:  # Insufficient S/N ratio to perform Lundeby
-        raise ValueError(f'Insufficient S/N ratio to perform Lundeby. Need at least {max_ruido_dB} dB')
+        raise NoiseError(f'Insufficient S/N ratio to perform Lundeby. Need at least {max_ruido_dB} dB')
+        #raise ValueError(f'Insufficient S/N ratio to perform Lundeby. Need at least {max_ruido_dB} dB')
 
     # Decay slope is estimated from a linear regression between the time interval that contains the maximum of the
     # input signal (0 dB) and the first interval 10 dB above the initial noise level
     r = int(np.max(np.argwhere(y_promediodB > ruido_dB + 10)))
-    print(f'r: {r}')
+    #print(f'r: {r}')
 
     if r <= 0:
         raise ValueError('No hay valor de la señal que esté 10 dB por encima del ruido')
@@ -163,9 +183,10 @@ def lundeby(y_power, Fs, Ts):
         punto = cruce
     C = np.max(y_power) * 10 ** (c / 10) * np.exp(m / 10 / np.log10(np.exp(1)) * cruce) / (
                 -m / 10 / np.log10(math.exp(1)))
-    return punto, C
+    
+    return punto, C, ruido_dB
 
-def tr_lundeby(y, fs):
+def tr_lundeby(y, fs, max_ruido_dB):
     """T30 parameter given a smoothed energy response "y" and its samplerate "fs" """
     #Normalizo y obtengo el cuadrado de la señal
     y = y / np.max(np.abs(y))
@@ -177,23 +198,23 @@ def tr_lundeby(y, fs):
     y = y[in_max:]
 
     #Encuentro los cortes de lundeby:
-    t, C = lundeby(y, fs, 0.05)
+    t, C, ruido_dB = lundeby(y, fs, 0.05, max_ruido_dB)
 
     #Saco schroeder:
     sch = schroeder(y, t, C)
-    sch = 10 * np.log10(sch / max(sch) + sys.float_info.epsilon)
+    sch = 10 * np.log10(sch / np.max(np.abs(sch)) + sys.float_info.epsilon)
 
     #Cálculo del T30:
     t = np.arange(0, len(sch) / fs, 1 / fs)
 
-    i_max = np.where(sch == max(sch)) # Finds maximum of input vector
+    i_max = np.where(sch == np.max(sch)) # Finds maximum of input vector
     sch = sch[int(i_max[0][0]):]
     
-    i_30 = np.where((sch <= max(sch) - 5) & (sch > (max(sch) - 35))) # Index of values between -5 and -35 dB
+    i_30 = np.where((sch <= np.max(sch) - 5) & (sch > (np.max(sch) - 35))) # Index of values between -5 and -35 dB
     t_30 = t[i_30]
     y_t30 = sch[i_30]
     m_t30, c_t30, f_t30 = leastsquares(t_30, y_t30) #leastsquares function used to find slope intercept and line of each parameter
                               
     T30 = -60 / m_t30 #T30 calculation
     
-    return T30
+    return T30, sch, ruido_dB

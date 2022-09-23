@@ -1,36 +1,43 @@
+"""Script para probar el cálculo del TR con el método de Lundeby."""
+
 from librosa import load
 import sys
 sys.path.append('../code/parameters_calculation')
-from tr_lundeby import tr_lundeby
-from filtros import bandpass_filtered_signals
-import time
+from tr_lundeby import tr_lundeby, NoiseError
+from filtros import BandpassFilter
 import glob
-start_time = time.time()
 
-#IMPLEMENTAR UNA FORMA DE GENERAR LOS FILTROS UNA SOLA VEZ PARA OPTIMIZAR LOS CÁLCULOS
+if __name__ == '__main__':
+    import time
+    start_time = time.time()
 
-files = glob.glob('../data/Descartados/*.wav')
+    files = glob.glob('../data/Descartados/*.wav')
+    #files = glob.glob('../data/RIRs/*.wav')
 
-bands = [125, 250, 500, 1000, 2000, 4000, 8000]
-#data, fs = load(f'../data/RIRs/sintetica_Seed9756433_Tr1.5.wav', sr=16000) #Funciona
-#data, fs = load(f'../data/RIRs/Xx04y00_3dB.wav', sr=16000) #Funciona
-#data, fs = load(f'../data/Descartados/Wx00y01_0.2s.wav', sr=16000) #Funciona
-#filtered_audios = bandpass_filtered_signals(data, fs, 4)
+    bands = [125, 250, 500, 1000, 2000, 4000, 8000]
+    type = 'octave band'
+    fs = 16000
+    order = 4
 
-for file in files:
-    data, fs = load(file, sr=16000) #Funciona
-    filtered_audios = bandpass_filtered_signals(data, fs, 4)
-    print(file)
+    bpfilter = BandpassFilter(type, fs, order, bands)
 
-    for i, band in enumerate(bands):
-        print(band)
-        
-        try:
-            t30 = tr_lundeby(filtered_audios[i], fs)
-        except ValueError as err:
-            print(err.args)
-            continue
+    max_ruido_dB = -45
 
-        print(t30)
+    for file in files:
+        data, fs = load(file, sr=16000) #Funciona
+        filtered_audios = bpfilter.filtered_signals(data)
+        print(file)
 
-print("--- %s seconds ---" % (time.time() - start_time))
+        for i, band in enumerate(bands):
+            print(band)
+            
+            try:
+                t30, _, ruidodB = tr_lundeby(filtered_audios[i], fs, max_ruido_dB)
+            except (ValueError, NoiseError) as err:
+                print(err.args)
+                continue
+
+            print(f'T30: {t30}')
+            print(f'ruidodB: {ruidodB}')
+
+    print("--- %s seconds ---" % (time.time() - start_time))
