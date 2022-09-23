@@ -6,6 +6,7 @@
 #results/
 dataframes/*.csv
 cache/*.pkl
+results/*
 
 # Python
 *__pycache__*
