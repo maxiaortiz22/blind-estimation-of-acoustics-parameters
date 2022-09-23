@@ -5,6 +5,7 @@
 #data/RIRs/*.wav
 #results/
 dataframes/*.csv
+cache/*.pkl
 
 # Python
 *__pycache__*
