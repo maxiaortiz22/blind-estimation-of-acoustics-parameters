@@ -20,4 +20,5 @@ if __name__ == '__main__':
 
     descriptors = pd.read_pickle(f'cache/descriptors_{max_ruido_dB}.pkl')
 
-    print(descriptors)
+    #print(descriptors)
+    print(descriptors.to_string())

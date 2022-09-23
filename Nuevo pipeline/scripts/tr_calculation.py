@@ -11,8 +11,7 @@ if __name__ == '__main__':
     import time
     start_time = time.time()
 
-    files = glob.glob('../data/Descartados/*.wav')
-    #files = glob.glob('../data/RIRs/*.wav')
+    files = glob.glob('../data/RIRs/*.wav')
 
     bands = [125, 250, 500, 1000, 2000, 4000, 8000]
     type = 'octave band'

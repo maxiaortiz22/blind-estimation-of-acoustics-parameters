@@ -4,9 +4,9 @@ from parameters_calculation.tr_lundeby import tr_lundeby, NoiseError
 from parameters_calculation.filtros import BandpassFilter
 from librosa import load
 import pandas as pd
-import numpy as np
 from progress.bar import IncrementalBar
 from os import listdir
+from math import nan
 
 def generate_rir_descriptors(rirs_path, files, bands, filter_type, fs, order, max_ruido_dB):
 
@@ -53,10 +53,10 @@ def generate_rir_descriptors(rirs_path, files, bands, filter_type, fs, order, ma
 
                 except (ValueError, NoiseError) as err:
                     print(err.args)
-                    t30_df.append(np.nan)
-                    c50_df.append(np.nan)
-                    c80_df.append(np.nan)
-                    d50_df.append(np.nan)
+                    t30_df.append(nan)
+                    c50_df.append(nan)
+                    c80_df.append(nan)
+                    d50_df.append(nan)
                     continue
 
             bar.next()
@@ -73,7 +73,7 @@ def generate_rir_descriptors(rirs_path, files, bands, filter_type, fs, order, ma
         descriptors_df = pd.DataFrame(data)
         descriptors_df = descriptors_df.dropna() #Borro los nan así sé qué RIRs y bandas puedo usar
         
-        pd.DataFrame(data).to_pickle(f'cache/descriptors_{max_ruido_dB}.pkl')
+        descriptors_df.to_pickle(f'cache/descriptors_{max_ruido_dB}.pkl')
 
         print('Parámetros calculados!')
 
