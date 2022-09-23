@@ -45,16 +45,3 @@ class BandpassFilter:
             filtered_audios[i, :] = sosfilt(sos, data)
 
         return filtered_audios
-            
-
-
-#Filtros scipy pasabajos y pasaaltos:
-def butter_bandpass_filter(data, lowcut, highcut, fs, order):
-    sos = butter(order, [lowcut, highcut], fs=fs, btype='bandpass', output='sos')
-    y = sosfilt(sos, data)
-    return y
-
-def butter_lowpass_filter(data, cutoff, fs, order):
-    sos = butter(order, cutoff, fs=fs, btype='lowpass', output='sos')
-    y = sosfilt(sos, data)
-    return y
