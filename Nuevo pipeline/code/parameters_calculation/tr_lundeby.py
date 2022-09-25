@@ -122,7 +122,6 @@ def lundeby(y_power, Fs, Ts, max_ruido_dB):
     #print(f'ruido_dB: {ruido_dB}')
     y_promediodB = 10 * np.log10(y_promedio / np.max(y_power) + sys.float_info.epsilon)
 
-    max_ruido_dB = -45 # CAMBIAR ESTO COMO VARIABLE DE ENTRADA!!!!!!!!!!!!
     if ruido_dB > max_ruido_dB:  # Insufficient S/N ratio to perform Lundeby
         raise NoiseError(f'Insufficient S/N ratio to perform Lundeby. Need at least {max_ruido_dB} dB')
         #raise ValueError(f'Insufficient S/N ratio to perform Lundeby. Need at least {max_ruido_dB} dB')

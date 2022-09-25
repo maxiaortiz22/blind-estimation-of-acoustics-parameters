@@ -9,8 +9,11 @@ from progress.bar import IncrementalBar
 from os import listdir
 from math import nan
 from scipy.signal import butter, fftconvolve
+from parameters_calculation.pink_noise import pink_noise
+import numpy as np
+import parameters_calculation.snr_calculator as snr_calculator
 
-def generate_rir_descriptors(files, bands, filter_type, fs, order, max_ruido_dB):
+def calc_rir_descriptors(files, bands, filter_type, fs, order, max_ruido_dB):
 
     available_cache_files = listdir('cache')
 
@@ -35,6 +38,7 @@ def generate_rir_descriptors(files, bands, filter_type, fs, order, max_ruido_dB)
         for file in files:
             name = file.split('.wav')[0]
             data, _ = load(f'data/RIRs/{file}', sr=fs) #Funciona
+            data = data/np.max(np.abs(data))
             filtered_audios = bpfilter.filtered_signals(data)
 
             for i, band in enumerate(bands):
@@ -81,15 +85,26 @@ def generate_rir_descriptors(files, bands, filter_type, fs, order, max_ruido_dB)
 
     
 
-def generate_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
+def calc_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
 
+    # Chequear si las bases de datos ya están disponibles:
     available_cache_files = listdir('cache')
 
-    db_exists = False
-    for available in available_cache_files:
-        if f'base_de_datos_{max_ruido_dB}.pkl' in available:
-            db_exists = True
-            print('Base de datos calculada!')
+    if add_noise: #Si quiero agregar ruido
+
+        db_exists = False
+        for available in available_cache_files:
+            if f'base_de_datos_ruido_{max_ruido_dB}.pkl' in available:
+                db_exists = True
+                print('Base de datos calculada!')
+    
+    elif add_noise == False: #Si no quiero ruido en los tae
+
+        db_exists = False
+        for available in available_cache_files:
+            if f'base_de_datos_{max_ruido_dB}.pkl' in available:
+                db_exists = True
+                print('Base de datos calculada!')
 
     if db_exists:
         pass
@@ -105,13 +120,6 @@ def generate_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
 
         descriptors = pd.read_pickle(f'cache/descriptors_{max_ruido_dB}.pkl') #Leo los descriptores disponibles de cada RIR
 
-        #RIRs_df_descriptors = descriptors.RIR.to_numpy()
-        #bands_df_descriptors = descriptors.banda.to_numpy()
-        #t30_df_descriptors = descriptors.t30.to_numpy()
-        #c50_df_descriptors = descriptors.c50.to_numpy()
-        #c80_df_descriptors = descriptors.c80.to_numpy()
-        #d50_df_descriptors = descriptors.d50.to_numpy()
-
         name_df , band_df, tae_df = [], [], []
         t30_df, c50_df, c80_df, d50_df, snr_df = [], [], [], [], []
 
@@ -120,30 +128,55 @@ def generate_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
 
         for file in files:
             voice_data, _ = load(f'data/Speech/{file}', sr=fs, duration=5.0) #Audio de voz
+            voice_data = voice_data / np.max(np.abs(voice_data))
             voice_name = file.split('.wav')[0]
 
             for i, rir in enumerate(descriptors.RIR.to_numpy()):
 
                 if previous_rir != rir: #Chequeo que no la haya leído antes
                     rir_data, _ = load(f'data/RIRs/{rir}.wav', sr=fs) #Audio de rir
+                    rir_data = rir_data / np.max(np.abs(rir_data))
+
                     reverbed_audio = fftconvolve(voice_data, rir_data, mode='same') #Reverbero el audio
+                    reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
+
                     filtered_audios = bpfilter.filtered_signals(reverbed_audio) #Filtro la señal por bandas
 
                 
-                # FALTA AGREGAR LA FORMA DE AGREGAR RUIDO ROSA O NO!!!! SI add_noise == True
-                
                 idx_audio = bands.index(descriptors.banda.to_numpy()[i]) #Me devuelve el índice del audio que tengo que buscar dentro de los filtrados
 
-                tae = TAE(filtered_audios[idx_audio], fs, sos_lowpass_filter) #Calculo el TAE
+                if add_noise:
+                    #Genero ruido rosa:
+                    noise_data = pink_noise(len(filtered_audios[idx_audio]))
 
-                name_df.append(f'{voice_name}_{rir}')
+                    #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                    rms_signal = snr_calculator.rms(filtered_audios[idx_audio])
+                    rms_noise = snr_calculator.rms(noise_data)
+
+                    snr_required = np.random.uniform(snr[0], snr[-1], 1)[0]
+
+                    comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                    noise_data_comp = noise_data*comp
+
+                    reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                    reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                    tae = TAE(reverbed_noisy_audio, fs, sos_lowpass_filter) #Calculo el TAE
+                    snr_df.append(snr_required)
+                
+                elif add_noise == False:
+                    tae = TAE(filtered_audios[idx_audio], fs, sos_lowpass_filter) #Calculo el TAE
+                    snr_df.append(nan) 
+
+                name_df.append(f'{voice_name}|{rir}')
                 band_df.append(descriptors.banda.to_numpy()[i])
                 tae_df.append([tae]) #Lo agrego en un wrapper dentro de una lista para poder guardarlo en el df
                 t30_df.append(descriptors.t30.to_numpy()[i])
                 c50_df.append(descriptors.c50.to_numpy()[i])
                 c80_df.append(descriptors.c80.to_numpy()[i])
                 d50_df.append(descriptors.d50.to_numpy()[i])
-                snr_df.append(nan) #CAMBIAR POR EL VALOR DE SNR SI add_noise == True
+                
 
                 previous_rir = rir #RIR revisada en esta iteración
 
@@ -161,7 +194,11 @@ def generate_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
                 'snr': snr_df}
         
         db_df = pd.DataFrame(data)
-        
-        db_df.to_pickle(f'cache/base_de_datos_{max_ruido_dB}.pkl') # AGREGAR OTRA POR SI TENGO RUIDO O NO!!!!
+
+        if add_noise: #Si agrego ruido en los tae
+            db_df.to_pickle(f'cache/base_de_datos_ruido_{max_ruido_dB}.pkl')
+    
+        elif add_noise == False: #Si no agrego ruido en los tae
+            db_df.to_pickle(f'cache/base_de_datos_{max_ruido_dB}.pkl')
 
         print('Base de datos calculada!')
