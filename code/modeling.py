@@ -129,10 +129,11 @@ def save_exp_data(exp_num, band, blind_estimation_model, history, prediction,
         os.makedirs(f'results/exp{exp_num}')
 
     #Guardo los pesos del modelo entrenado:
-    #blind_estimation_model.save_weights(f'results/exp{exp_num}/weights_{band}.h5')
+    blind_estimation_model.save_weights(f'results/exp{exp_num}/weights_{band}.h5')
 
     #Guardo en un diccionario los resultados del modelo:
-    results_dic = {'history': history,
+    results_dic = {'loss': history.history['loss'],
+                   'val_loss': history.history['val_loss'],
                    'prediction': prediction,
                    'err_t30': err_t30,
                    'err_c50': err_c50,
