@@ -1,7 +1,9 @@
 """
-Experimento 1: Entreno el modelo con toda la base de datos, sin agregar ruido rosa.
+Experimento 2: Entreno el modelo con toda la base de datos, agregando ruido rosa.
 
-El criterio de aceptación de ruido para determinar si una RIR es válida o no será de 60 dB.
+El criterio de aceptación de ruido para determinar si una RIR es válida o no será de 45 dB.
+
+Los valores de SNR de las señales para entrenar van a estar entre: -5 y 20 dB
 
 Para este caso uso los siguientes parámetros para la red:
 
@@ -16,7 +18,7 @@ import os
 
 #Configuración global:
 seed = 2222 #Inicializador del generador de números random
-exp_num = 1 #Número del experimento
+exp_num = 2 #Número del experimento
 
 # Data:
 
@@ -27,8 +29,8 @@ bands = [125, 250, 500, 1000, 2000, 4000, 8000] #Bandas a analizar
 filter_type = 'octave band' #Tipo de filtro a utilizar: 'octave band' o 'third octave band'
 fs = 16000 #Frecuencia de sampleo de los audios.
 order = 4 #Orden del filtro
-max_ruido_dB = -60 #Criterio de aceptación de ruido para determinar si una RIR es válida o no
-add_noise = False #Booleano para definir si agregar ruido rosa o no a la base de datos.
+max_ruido_dB = -45 #Criterio de aceptación de ruido para determinar si una RIR es válida o no
+add_noise = True #Booleano para definir si agregar ruido rosa o no a la base de datos.
 snr = [-5, 20] #Valores de SNR que tendrían los audios si se les agrega ruido
 
 #Parámetros para la lectura de la base de datos:
