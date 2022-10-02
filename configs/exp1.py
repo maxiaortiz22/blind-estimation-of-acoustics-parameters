@@ -25,6 +25,9 @@ snr = [-5, 20] #Valores de SNR que tendrían los audios si se les agrega ruido
 sample_frac = 1.0 #Fracción de la data a leer
 random_state = seed #Inicializador del generador de números random
 
+train = 0.8
+test = 0.2
+
 # Modelo:
 
 #Parámetros de la red:

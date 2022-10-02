@@ -121,7 +121,7 @@ def calc_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
         descriptors = pd.read_pickle(f'cache/descriptors_{max_ruido_dB}.pkl') #Leo los descriptores disponibles de cada RIR
 
         name_df , band_df, tae_df = [], [], []
-        descriptors_df, snr_df = [], [], [], [], []
+        descriptors_df, snr_df = [], []
 
         previous_rir = None #Inicializo la rir que estoy viendo
         bar = IncrementalBar('Calculating data base', max = int(len(files)*len(descriptors.RIR.to_numpy())))
@@ -171,11 +171,11 @@ def calc_tae(files, bands, filter_type, fs, max_ruido_dB, add_noise, snr):
 
                 name_df.append(f'{voice_name}|{rir}')
                 band_df.append(descriptors.banda.to_numpy()[i])
-                tae_df.append([tae]) #Lo agrego en un wrapper dentro de una lista para poder guardarlo en el df
-                descriptors_df.append([np.array(descriptors.t30.to_numpy()[i],
-                                                descriptors.c50.to_numpy()[i],
-                                                descriptors.c80.to_numpy()[i],
-                                                descriptors.d50.to_numpy()[i])])
+                tae_df.append(list(tae)) #Lo agrego en un wrapper dentro de una lista para poder guardarlo en el df
+                descriptors_df.append([descriptors.t30.to_numpy()[i],
+                                       descriptors.c50.to_numpy()[i],
+                                       descriptors.c80.to_numpy()[i],
+                                       descriptors.d50.to_numpy()[i]])
                 
 
                 previous_rir = rir #RIR revisada en esta iteración

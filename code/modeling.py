@@ -54,17 +54,20 @@ def reshape_data(tae, descriptors):
     descriptors_list = [[]] * int(len(descriptors)) #Genero una lista de listas vacías
 
     for i in range(len(tae)):
-        tae_list[i] = tae[i].reshape(-1, 1)
-        descriptors_list[i] = descriptors[i].reshape(-1, 1)
+        tae_list[i] = np.array(tae[i]).reshape(-1, 1)
+        descriptors_list[i] = np.array(descriptors[i]).reshape(-1, 1)
 
     X = np.array(tae_list)
     y = np.array(descriptors_list)
 
     return X, y
 
-def normalize_descriptors(descriptors):
+def normalize_descriptors(descriptors, y_train, y_test):
     """Luego de hacer el reshape, se usa esta función para normalizar los descriptores
     con su percentil 95"""
+
+    descriptors = list(descriptors)
+
     #Normalización de los parámetros:
     T30 = [descriptors[i][0][0] for i in range(len(descriptors))]
     C50 = [descriptors[i][1][0] for i in range(len(descriptors))]
@@ -78,9 +81,10 @@ def normalize_descriptors(descriptors):
 
     norm = np.array([T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95]).reshape(-1, 1)
 
-    descriptors = np.array([descriptors[i]/norm for i in range(len(descriptors))])
+    y_train = np.array([y_train[i]/norm for i in range(len(y_train))])
+    y_test = np.array([y_test[i]/norm for i in range(len(y_test))])
 
-    return descriptors, T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95
+    return y_train, y_test, T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95
 
 def prediction(blind_estimation_model, X_test, y_test):
     """Función para calcular las predicciones del set de pruebas
@@ -114,7 +118,7 @@ def descriptors_err(prediction, y_test):
 
     return err_t30, err_c50, err_c80, err_d50
 
-def save_exp_data(exp_num, blind_estimation_model, history, prediction, 
+def save_exp_data(exp_num, band, blind_estimation_model, history, prediction, 
                   err_t30, err_c50, err_c80, err_d50, 
                   T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95):
     """Función para guardar todos los datos del experimento para poder hacer el análisis en los notebooks"""
@@ -125,7 +129,7 @@ def save_exp_data(exp_num, blind_estimation_model, history, prediction,
         os.makedirs(f'results/exp{exp_num}')
 
     #Guardo los pesos del modelo entrenado:
-    blind_estimation_model.save_weights(f'results/exp{exp_num}/weights.h5')
+    #blind_estimation_model.save_weights(f'results/exp{exp_num}/weights_{band}.h5')
 
     #Guardo en un diccionario los resultados del modelo:
     results_dic = {'history': history,
@@ -139,7 +143,7 @@ def save_exp_data(exp_num, blind_estimation_model, history, prediction,
                    'C80_perc_95': C80_perc_95,
                    'D50_perc_95': D50_perc_95}
 
-    with open(f'results/exp{exp_num}/results.pickle', 'wb') as handle:
+    with open(f'results/exp{exp_num}/results_{band}.pickle', 'wb') as handle:
         pickle.dump(results_dic, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
     print(f'Resultados guardados en la carpeta: results/exp{exp_num}')
