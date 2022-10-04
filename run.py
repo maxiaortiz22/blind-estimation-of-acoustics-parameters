@@ -2,7 +2,7 @@ import sys
 sys.path.append('code')
 import argparse
 from code.utils import import_configs_objs
-from code.generate_database import calc_rir_descriptors, calc_tae
+from code.generate_database import calc_database
 from code.data_reader import read_dataset
 from sklearn.model_selection import train_test_split
 from code.modeling import model, reshape_data, normalize_descriptors, prediction, descriptors_err, save_exp_data
@@ -34,18 +34,17 @@ def main(**kwargs):
     #print(config)
 
     #Creo la base de datos si no existe esta configuración en la carpeta cache:
-    calc_rir_descriptors(config['files_rirs'], config['bands'], config['filter_type'], 
-                         config['fs'], config['order'], config['max_ruido_dB'])
 
-    calc_tae(config['files_voices'], config['bands'], config['filter_type'], config['fs'], 
-             config['max_ruido_dB'], config['add_noise'], config['snr'])
+    db_name = calc_database(config['files_speech'], config['files_rirs'], config['bands'], config['filter_type'], 
+                            config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], config['snr'], 
+                            config['tr_aug'], config['drr_aug'])
 
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
 
         #Leo la fracción de datos especificados para la banda seleccionada:
-        db = read_dataset(band, config['max_ruido_dB'], config['add_noise'], config['sample_frac'], config['random_state'])
+        db = read_dataset(band, db_name, config['sample_frac'], config['random_state'])
 
         tae = list(db.tae.to_numpy())
         descriptors = list(db.descriptors.to_numpy())
