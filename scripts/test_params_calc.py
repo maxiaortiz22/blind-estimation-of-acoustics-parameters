@@ -4,7 +4,7 @@ os.chdir('../')
 import pandas as pd
 import sys
 sys.path.append('code')
-from generate_database import calc_rir_descriptors, calc_tae
+from generate_database import calc_database
 #(rirs_path, files, bands, filter_type, fs, order, max_ruido_dB)
 
 if __name__ == '__main__':
@@ -12,7 +12,7 @@ if __name__ == '__main__':
     start_time = time.time()
 
     files_rirs = os.listdir('data/RIRs')
-    files_voices = os.listdir('data/Speech')
+    files_speech = os.listdir('data/Speech')
     bands = [125, 250, 500, 1000, 2000, 4000, 8000]
     filter_type = 'octave band'
     fs = 16000
@@ -20,25 +20,14 @@ if __name__ == '__main__':
     max_ruido_dB = -60
     add_noise = False
     snr = [-5, 20] #Para sacar una SNR con np.random.uniform(snr[0], snr[-1], 1)[0]. Agregar esto al generate_database.py
-
-    calc_rir_descriptors(files_rirs, bands, filter_type, fs, order, max_ruido_dB)
-
-    #descriptors = pd.read_pickle(f'cache/descriptors_{max_ruido_dB}.pkl')
-
-    #print(descriptors)
-    #print(descriptors.to_string())
-
-    calc_tae(files_voices, bands, filter_type, fs, max_ruido_dB, add_noise, snr)
-
-    if add_noise: 
-        db = pd.read_pickle(f'cache/base_de_datos_ruido_{max_ruido_dB}.pkl')
-        #db.to_excel(f'cache/base_de_datos_ruido_{max_ruido_dB}.xlsx')
+    tr_aug = [0.2, 3.1, 0.1]
+    drr_aug = [-6, 19, 1]
     
-    elif add_noise == False: #Si no quiero ruido en los tae
-        db = pd.read_pickle(f'cache/base_de_datos_{max_ruido_dB}.pkl')
-        #db.to_excel(f'cache/base_de_datos_{max_ruido_dB}.xlsx')
+    db_name = calc_database(files_speech, files_rirs, bands, filter_type, fs, max_ruido_dB, 
+                            order, add_noise, snr, tr_aug, drr_aug)
+ 
+    db = pd.read_pickle(f'cache/{db_name}')
     
-
     print(db)
 
     print("--- %s seconds ---" % (time.time() - start_time))
