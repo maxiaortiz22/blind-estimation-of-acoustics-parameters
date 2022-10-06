@@ -120,7 +120,8 @@ def descriptors_err(prediction, y_test):
 
 def save_exp_data(exp_num, band, blind_estimation_model, history, prediction, 
                   err_t30, err_c50, err_c80, err_d50, 
-                  T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95):
+                  T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95,
+                  X_test, y_test):
     """Función para guardar todos los datos del experimento para poder hacer el análisis en los notebooks"""
 
     #Creo el directorio donde se va a guardar el experimento si no existe:
@@ -142,7 +143,9 @@ def save_exp_data(exp_num, band, blind_estimation_model, history, prediction,
                    'T30_perc_95': T30_perc_95,
                    'C50_perc_95': C50_perc_95,
                    'C80_perc_95': C80_perc_95,
-                   'D50_perc_95': D50_perc_95}
+                   'D50_perc_95': D50_perc_95,
+                   'X_test': X_test,
+                   'y_test': y_test}
 
     with open(f'results/exp{exp_num}/results_{band}.pickle', 'wb') as handle:
         pickle.dump(results_dic, handle, protocol=pickle.HIGHEST_PROTOCOL)

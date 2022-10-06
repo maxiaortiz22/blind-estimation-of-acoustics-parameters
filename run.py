@@ -58,7 +58,8 @@ def main(**kwargs):
         y_train, y_test, T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95 = normalize_descriptors(descriptors, y_train, y_test)
 
         #Instancio el modelo:
-        blind_estimation_model = model()
+        blind_estimation_model = model(config['filters'], config['kernel_size'], config['activation'], 
+                                       config['pool_size'], config['learning_rate'])
         #blind_estimation_model.summary()
 
         #Entreno el modelo:
@@ -76,7 +77,8 @@ def main(**kwargs):
         #Guardo los datos del experimento:
         save_exp_data(config['exp_num'], band, blind_estimation_model, history, predict, 
                       err_t30, err_c50, err_c80, err_d50, 
-                      T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95)
+                      T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95,
+                      X_test, y_test)
 
 
 if __name__ == "__main__":
