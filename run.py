@@ -35,9 +35,9 @@ def main(**kwargs):
 
     #Creo la base de datos si no existe esta configuración en la carpeta cache:
 
-    db_name = calc_database(config['files_speech'], config['files_rirs'], config['bands'], config['filter_type'], 
-                            config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], config['snr'], 
-                            config['tr_aug'], config['drr_aug'])
+    db_name = calc_database(config['files_speech'], config['files_rirs'], config['tot_sinteticas'], config['bands'], 
+                            config['filter_type'], config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], 
+                            config['snr'], config['tr_aug'], config['drr_aug'])
 
     #Entrenamiento:
     for band in config['bands']:

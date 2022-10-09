@@ -13,7 +13,7 @@ Para este caso uso los siguientes parámetros para la red:
     * pool_size = [2,2,2]
     * learning_rate = 0.001
 """
-from itertools import product
+import random
 import os
 
 #Configuración global:
@@ -21,9 +21,14 @@ seed = 2222 #Inicializador del generador de números random
 exp_num = 2 #Número del experimento
 
 # Data:
+tot_rirs_from_data = 1000 #Cantidad de RIRs a agarrar de la carpeta data/RIRs
+random.seed(seed) #Seed para hacer reproducible el random de agarrado de RIRs
 
 #Parámetros para el cálculo de los descriptores:
 files_rirs = os.listdir('data/RIRs') #Audios de las RIRs
+files_rirs = random.sample(files_rirs, k=tot_rirs_from_data)
+sinteticas_rirs = [audio for audio in files_rirs if 'sintetica' in audio]
+tot_sinteticas = len(sinteticas_rirs)
 files_speech = os.listdir('data/Speech') #Audios de voz
 bands = [125, 250, 500, 1000, 2000, 4000, 8000] #Bandas a analizar
 filter_type = 'octave band' #Tipo de filtro a utilizar: 'octave band' o 'third octave band'
