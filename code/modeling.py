@@ -1,5 +1,3 @@
-import tensorflow as tf
-import tensorflow.keras.layers as tfkl
 import numpy as np
 from progress.bar import IncrementalBar
 import os
@@ -19,6 +17,9 @@ def model(filters=[32, 18, 8, 4],
     4) pool_size = [2,2,2],
     5) learning_rate = 0.001
     """
+
+    import tensorflow as tf
+    import tensorflow.keras.layers as tfkl
     
     tf.keras.backend.clear_session()
 

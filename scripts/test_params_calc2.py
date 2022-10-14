@@ -1,14 +1,12 @@
+import concurrent.futures
 import os
-os.chdir('../')
-
-import pandas as pd
-import random
 import sys
 sys.path.append('code')
-from data_reader import read_dataset
-#(rirs_path, files, bands, filter_type, fs, order, max_ruido_dB)
+from generate_database import DataBase
+import random
 
 if __name__ == '__main__':
+
     import time
     start_time = time.time()
 
@@ -31,10 +29,17 @@ if __name__ == '__main__':
     tr_aug = [0.2, 3.1, 0.1] #Aumentar los valores de TR de 0.2 a 3 s con pasos de 0.1 s
     drr_aug = [-6, 19, 1] #Aumentar los valores de DRR de -6 a 18 dB con pasos de 1 dB
 
-    db_name = f'base_de_datos_{max_ruido_dB}_noise_{add_noise}_traug_{tr_aug[0]}_{tr_aug[1]}_{tr_aug[2]}_drraug_{drr_aug[0]}_{drr_aug[1]}_{drr_aug[2]}_snr_{snr[0]}_{snr[-1]}'
 
-    for band in bands:
-        db = read_dataset(band, db_name, 1.0, seed)
-        print(len(db))
+    database = DataBase(files_speech, files_rirs, tot_sinteticas, bands, filter_type, fs, max_ruido_dB, order, add_noise, snr, tr_aug, drr_aug)
+
+    #database.start_bar()
+    
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+
+        results = executor.map(database.calc_database_multiprocess, files_rirs)
+
+    #database.finish_bar()
+
+    db_name = database.save_database_multiprocess(results)
 
     print("--- %s seconds ---" % (time.time() - start_time))

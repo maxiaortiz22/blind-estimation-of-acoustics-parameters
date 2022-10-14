@@ -1,11 +1,13 @@
 import sys
 sys.path.append('code')
+import os
 import argparse
 from code.utils import import_configs_objs
-from code.generate_database import calc_database
+from code.generate_database import DataBase
 from code.data_reader import read_dataset
 from sklearn.model_selection import train_test_split
 from code.modeling import model, reshape_data, normalize_descriptors, prediction, descriptors_err, save_exp_data
+import concurrent.futures
 from warnings import filterwarnings
 filterwarnings("ignore")
 
@@ -35,10 +37,27 @@ def main(**kwargs):
 
     #Creo la base de datos si no existe esta configuración en la carpeta cache:
 
-    db_name = calc_database(config['files_speech'], config['files_rirs'], config['tot_sinteticas'], config['bands'], 
-                            config['filter_type'], config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], 
-                            config['snr'], config['tr_aug'], config['drr_aug'])
+    database = DataBase(config['files_speech'], config['files_rirs'], config['tot_sinteticas'], config['bands'], 
+                        config['filter_type'], config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], 
+                        config['snr'], config['tr_aug'], config['drr_aug'])
 
+    db_name = database.get_database_name()
+
+    db_exists = False
+    for folder in os.listdir('cache/'):
+        if db_name in folder:
+            db_exists = True
+
+    if db_exists:
+        print('Base de datos calculada')
+    
+    else:
+        with concurrent.futures.ProcessPoolExecutor() as executor:
+
+            results = executor.map(database.calc_database_multiprocess, config['files_rirs'])
+
+        database.save_database_multiprocess(results)
+    
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
