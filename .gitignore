@@ -9,7 +9,7 @@ cache/base_de_datos*
 cache/base_de_datos*/*.pkl
 results/**/*.pickle
 results/**/*.h5
-
+venv
 # Python
  
 *.ipynb_checkpoints

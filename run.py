@@ -1,13 +1,13 @@
-import sys
-sys.path.append('code')
+import sys; sys.path.append('code')
 import os
 import argparse
-from code.utils import import_configs_objs
-from code.generate_database import DataBase
-from code.data_reader import read_dataset
+from code import import_configs_objs
+from code import DataBase
+from code import read_dataset
 from sklearn.model_selection import train_test_split
-from code.modeling import model, reshape_data, normalize_descriptors, prediction, descriptors_err, save_exp_data
+from code import model, reshape_data, normalize_descriptors, prediction, descriptors_err, save_exp_data
 import concurrent.futures
+import gc
 from warnings import filterwarnings
 filterwarnings("ignore")
 
@@ -58,6 +58,8 @@ def main(**kwargs):
 
         database.save_database_multiprocess(results)
     
+    del database
+
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
@@ -98,6 +100,12 @@ def main(**kwargs):
                       err_t30, err_c50, err_c80, err_d50, 
                       T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95,
                       X_test, y_test)
+
+        # Elimino estas variables de memoria:
+        del db, tae, descriptors, X_train, X_test, y_train, y_test 
+        del T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95
+        del blind_estimation_model, history, predict, err_t30, err_c50, err_c80, err_d50
+        gc.collect()
 
 
 if __name__ == "__main__":

@@ -3,11 +3,11 @@ from progress.bar import IncrementalBar
 import os
 import pickle
 
-def model(filters=[32, 18, 8, 4], 
-           kernel_size=[10, 5, 5, 5], 
-           activation=['relu','relu','relu','relu'], 
-           pool_size=[2,2,2],
-           learning_rate=0.001):
+def model(filters: list = [32, 18, 8, 4], 
+           kernel_size: list = [10, 5, 5, 5], 
+           activation: list = ['relu','relu','relu','relu'], 
+           pool_size: list = [2,2,2],
+           learning_rate: float = 0.001):
 
     """Se utiliza como modelo una red neruronal convolucional de 4 capas con los siguientes
     valores por defecto:

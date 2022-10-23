@@ -1,5 +1,5 @@
 """
-Experimento 2: Entreno el modelo con toda la base de datos, agregando ruido rosa.
+Experimento 3: Entreno el modelo con toda la base de datos, agregando ruido rosa.
 
 El criterio de aceptación de ruido para determinar si una RIR es válida o no será de 60 dB.
 
@@ -18,7 +18,7 @@ import os
 
 #Configuración global:
 seed = 2222 #Inicializador del generador de números random
-exp_num = 2 #Número del experimento
+exp_num = 3 #Número del experimento
 
 # Data:
 tot_rirs_from_data = len(os.listdir('data/RIRs')) #Cantidad de RIRs a agarrar de la carpeta data/RIRs
