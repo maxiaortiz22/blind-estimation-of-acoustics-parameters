@@ -58,12 +58,9 @@ def main(**kwargs):
 
         database.save_database_multiprocess(results)
     
-    del database
+    del database #Elimino el objeto de la base de datos de memoria
 
-    gc.collect()
-
-    if True: #QUITAR CUANDO TERMINE DE CALCULAR!!!!!
-        quit()
+    gc.collect() #Llamo al garbage collector de python
 
     #Entrenamiento:
     for band in config['bands']:
