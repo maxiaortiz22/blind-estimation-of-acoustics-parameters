@@ -12,7 +12,7 @@ from parameters_calculation import pink_noise
 import numpy as np
 import parameters_calculation as snr_calculator
 from parameters_calculation import tr_augmentation, TrAugmentationError
-from parameters_calculation import drr_aug
+from parameters_calculation import drr_aug, get_DRR
 import os
 
 class DataBase():
@@ -63,7 +63,7 @@ class DataBase():
         else: #Calculo la base de dato si no existe
 
             descriptors_df, name_df, band_df = [], [], []
-            tae_df, snr_df = [], []
+            tae_df, snr_df, drr_df = [], [], []
             
             for speech_file in self.speech_files: #Por cada audio de voz
 
@@ -99,6 +99,7 @@ class DataBase():
                             c50 = clarity(50, filtered_rir[i], self.fs)
                             c80 = clarity(80, filtered_rir[i], self.fs)
                             d50 = definition(filtered_rir[i], self.fs)
+                            drr, _, _ = get_DRR(filtered_rir[i], self.fs)
 
                             #Cálculo del tae:
                             if self.add_noise:
@@ -131,6 +132,7 @@ class DataBase():
                             name_df.append(name)
                             band_df.append(band)
                             tae_df.append(list(tae))
+                            drr_df.append(drr)
                             
                         
                         except (ValueError, NoiseError, Exception) as err:
@@ -160,6 +162,7 @@ class DataBase():
                             c50 = clarity(50, filtered_rir[i], self.fs)
                             c80 = clarity(80, filtered_rir[i], self.fs)
                             d50 = definition(filtered_rir[i], self.fs)
+                            drr, _, _ = get_DRR(filtered_rir[i], self.fs)
 
                             #Cálculo del tae:
                             if self.add_noise:
@@ -192,6 +195,7 @@ class DataBase():
                             name_df.append(name)
                             band_df.append(band)
                             tae_df.append(list(tae))
+                            drr_df.append(drr)
                             
                         
                         except (ValueError, NoiseError, Exception) as err:
@@ -225,6 +229,7 @@ class DataBase():
                                     c50 = clarity(50, filtered_rir[i], self.fs)
                                     c80 = clarity(80, filtered_rir[i], self.fs)
                                     d50 = definition(filtered_rir[i], self.fs)
+                                    drr, _, _ = get_DRR(filtered_rir[i], self.fs)
 
                                     #Cálculo del tae:
 
@@ -258,6 +263,7 @@ class DataBase():
                                     name_df.append(name)
                                     band_df.append(band)
                                     tae_df.append(list(tae))
+                                    drr_df.append(drr)
 
                                     
                                 
@@ -294,6 +300,7 @@ class DataBase():
                                     c50 = clarity(50, filtered_rir[i], self.fs)
                                     c80 = clarity(80, filtered_rir[i], self.fs)
                                     d50 = definition(filtered_rir[i], self.fs)
+                                    drr, _, _ = get_DRR(filtered_rir[i], self.fs)
 
                                     #Calculo del tae:
 
@@ -327,6 +334,7 @@ class DataBase():
                                     name_df.append(name)
                                     band_df.append(band)
                                     tae_df.append(list(tae))
+                                    drr_df.append(drr)
 
 
                                 except (ValueError, NoiseError, Exception) as err:
@@ -340,11 +348,11 @@ class DataBase():
         
 
         print(f'RIR procesada: {rir_name}')
-        return [name_df, band_df, tae_df, descriptors_df, snr_df]
+        return [name_df, band_df, tae_df, descriptors_df, snr_df, drr_df]
 
     def save_database_multiprocess(self, results):
         
-        name_df, band_df, tae_df, descriptors_df, snr_df = [], [], [], [], []
+        name_df, band_df, tae_df, descriptors_df, snr_df, drr_df = [], [], [], [], [], []
 
         #Creo la carpeta donde guardo la base de datos:
         os.mkdir(f'cache/{self.db_name}')
@@ -360,6 +368,7 @@ class DataBase():
                 tae_df.append(result[2][i])
                 descriptors_df.append(result[3][i])
                 snr_df.append(result[4][i])
+                drr_df.append(result[5][i])
         
         #Guardo la base de datos en archivos de a 50000 audios:
         buffer = 50000
@@ -371,7 +380,8 @@ class DataBase():
                     'banda': band_df,
                     'tae': tae_df,
                     'descriptors': descriptors_df,
-                    'snr': snr_df}
+                    'snr': snr_df,
+                    'drr': drr_df}
             
             db_df = pd.DataFrame(data)
 
@@ -385,7 +395,8 @@ class DataBase():
                     'banda': band_df[int(cut*buffer):int((cut+1)*buffer)],
                     'tae': tae_df[int(cut*buffer):int((cut+1)*buffer)],
                     'descriptors': descriptors_df[int(cut*buffer):int((cut+1)*buffer)],
-                    'snr': snr_df[int(cut*buffer):int((cut+1)*buffer)]}
+                    'snr': snr_df[int(cut*buffer):int((cut+1)*buffer)],
+                    'drr': drr_df[int(cut*buffer):int((cut+1)*buffer)]}
             
                 db_df = pd.DataFrame(data)
 
@@ -395,7 +406,8 @@ class DataBase():
                     'banda': band_df[int(tot_cuts*buffer):],
                     'tae': tae_df[int(tot_cuts*buffer):],
                     'descriptors': descriptors_df[int(tot_cuts*buffer):],
-                    'snr': snr_df[int(tot_cuts*buffer):]}
+                    'snr': snr_df[int(tot_cuts*buffer):],
+                    'drr': drr_df[int(tot_cuts*buffer):]}
             
             db_df = pd.DataFrame(data)
 

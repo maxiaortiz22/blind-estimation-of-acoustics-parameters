@@ -13,9 +13,9 @@ class NoiseError(Exception):
     def __str__(self):
         print('calling str')
         if self.message:
-            return 'MyCustomError, {0} '.format(self.message)
+            return f'NoiseError: {self.message} '
         else:
-            return 'MyCustomError has been raised'
+            return f'NoiseError has been raised: {self.message}'
 
 
 # raise MyCustomError
@@ -119,7 +119,11 @@ def lundeby(y_power, Fs, Ts, max_ruido_dB):
     ruido_dB = 10 * np.log10(
         np.sum(y_power[round(0.9 * len(y_power)):len(y_power)]) / (0.1 * len(y_power)) / np.max(y_power)
                 + sys.float_info.epsilon )
+    
+    #ruido_dB2 = 10*np.log10(np.mean(y_power[-int(y_power.size/10):]))
+
     #print(f'ruido_dB: {ruido_dB}')
+    #print(f'ruido_dB: {ruido_dB2}')
     y_promediodB = 10 * np.log10(y_promedio / np.max(y_power) + sys.float_info.epsilon)
 
     if ruido_dB > max_ruido_dB:  # Insufficient S/N ratio to perform Lundeby

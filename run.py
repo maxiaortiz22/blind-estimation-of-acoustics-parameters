@@ -60,6 +60,11 @@ def main(**kwargs):
     
     del database
 
+    gc.collect()
+
+    if True: #QUITAR CUANDO TERMINE DE CALCULAR!!!!!
+        quit()
+
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
