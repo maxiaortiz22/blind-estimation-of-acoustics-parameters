@@ -22,11 +22,22 @@ exp_num = 3 #Número del experimento
 
 # Data:
 tot_rirs_from_data = len(os.listdir('data/RIRs')) #Cantidad de RIRs a agarrar de la carpeta data/RIRs
+tot_to_augmentate = 15 #Elijo 15 audios de cada sala para aumentar.
 random.seed(seed) #Seed para hacer reproducible el random de agarrado de RIRs
 
 #Parámetros para el cálculo de los descriptores:
 files_rirs = os.listdir('data/RIRs') #Audios de las RIRs
 files_rirs = random.sample(files_rirs, k=tot_rirs_from_data)
+
+great_hall_rirs = [audio for audio in files_rirs if 'great_hall' in audio]
+octagon_rirs = [audio for audio in files_rirs if 'octagon' in audio]
+classroom_rirs = [audio for audio in files_rirs if 'classroom' in audio]
+
+to_augmentate = []
+
+for room in [great_hall_rirs, octagon_rirs, classroom_rirs]:
+    to_augmentate.extend(random.sample(room, k=tot_to_augmentate))
+
 sinteticas_rirs = [audio for audio in files_rirs if 'sintetica' in audio]
 tot_sinteticas = len(sinteticas_rirs)
 files_speech = os.listdir('data/Speech') #Audios de voz

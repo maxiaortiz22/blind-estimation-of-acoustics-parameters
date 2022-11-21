@@ -37,7 +37,7 @@ def main(**kwargs):
 
     #Creo la base de datos si no existe esta configuración en la carpeta cache:
 
-    database = DataBase(config['files_speech'], config['files_rirs'], config['tot_sinteticas'], config['bands'], 
+    database = DataBase(config['files_speech'], config['files_rirs'], config['tot_sinteticas'], config['to_augmentate'], config['bands'], 
                         config['filter_type'], config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], 
                         config['snr'], config['tr_aug'], config['drr_aug'])
 

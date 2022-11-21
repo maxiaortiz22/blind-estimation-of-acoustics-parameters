@@ -18,14 +18,15 @@ import os
 class DataBase():
     """Clase para generar el cálculo de la base de datos para entrenar la red."""
 
-    __slots__ = ('speech_files', 'rir_files', 'tot_sinteticas', 'bands', 'filter_type', 
+    __slots__ = ('speech_files', 'rir_files', 'tot_sinteticas', 'to_augmentate', 'bands', 'filter_type', 
                  'fs', 'max_ruido_dB', 'order', 'add_noise', 'snr', 'TR_aug', 'DRR_aug', 'db_name', 'cutoff',
                  'sos_lowpass_filter', 'TR_variations', 'DRR_variations', 'bpfilter')
     
-    def __init__(self, speech_files, rir_files, tot_sinteticas, bands, filter_type, fs, max_ruido_dB, order, add_noise, snr, TR_aug, DRR_aug):
+    def __init__(self, speech_files, rir_files, tot_sinteticas, to_augmentate,  bands, filter_type, fs, max_ruido_dB, order, add_noise, snr, TR_aug, DRR_aug):
         self.speech_files = speech_files
         self.rir_files = rir_files
         self.tot_sinteticas = tot_sinteticas
+        self.to_augmentate = to_augmentate
         self.bands = bands
         self.filter_type = filter_type
         self.fs = fs
@@ -77,7 +78,7 @@ class DataBase():
                 rir_data, _ = load(f'data/RIRs/{rir_file}', sr=self.fs)
                 rir_data = rir_data/np.max(np.abs(rir_data))
 
-                if 'sintetica' in rir_name: #Si se trata de una RIR sintética, realizo el cálculo sin aumentar
+                if ('sintetica' in rir_name) or not any(rir_name in s for s in self.to_augmentate): #Si se trata de una RIR sintética o de una de las RIRs que no se eligirieron para aumentar
 
                     #Realizo el cálculo para la RIR original:
 
@@ -140,7 +141,7 @@ class DataBase():
                             print(err.args)
                             continue
 
-                else: #Si no es sintética, realizo el cálculo en la original y la aumento:
+                else: #Realizo el cálculo en la original y la aumento para las seleccionadas:
 
                     #Realizo el cálculo para la RIR original:
 
