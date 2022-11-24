@@ -1,6 +1,5 @@
 from scipy.signal import butter, sosfilt
 import numpy as np
-#IMPLEMENTAR UNA FORMA DE GENERAR LOS FILTROS UNA SOLA VEZ PARA OPTIMIZAR LOS CÁLCULOS
 
 class BandpassFilter:
 
