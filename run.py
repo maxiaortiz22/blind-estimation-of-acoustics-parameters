@@ -62,6 +62,9 @@ def main(**kwargs):
 
     gc.collect() #Llamo al garbage collector de python
 
+    if True:
+        quit()
+
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
