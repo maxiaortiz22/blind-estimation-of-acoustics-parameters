@@ -20,6 +20,11 @@ import os
 seed = 2222 #Inicializador del generador de números random
 exp_num = 4 #Número del experimento
 
+#Splits of RIRs for training and testing:
+train = 0.8
+test = 0.2
+
+
 # Data:
 tot_rirs_from_data = len(os.listdir('data/RIRs')) #Cantidad de RIRs a agarrar de la carpeta data/RIRs
 tot_to_augmentate = 15 #Elijo 15 audios de cada sala para aumentar.
@@ -40,7 +45,30 @@ for room in [great_hall_rirs, octagon_rirs, classroom_rirs]:
 
 sinteticas_rirs = [audio for audio in files_rirs if 'sintetica' in audio]
 tot_sinteticas = len(sinteticas_rirs)
-files_speech = os.listdir('data/Speech') #Audios de voz
+
+
+#Separo las sintéticas:
+aux_sinteticas_training = random.sample(sinteticas_rirs, k=int(tot_sinteticas*train))
+aux_sinteticas_testing = [audio for audio in sinteticas_rirs if audio not in aux_sinteticas_training]
+
+#Separo las aumentadas:
+aux_aumentadas_training = random.sample(to_augmentate, k=int(len(to_augmentate)*train))
+aux_aumentadas_testing = [audio for audio in to_augmentate if audio not in aux_aumentadas_training]
+
+#Separo las reales:
+already_selected = sinteticas_rirs + to_augmentate
+not_selected = [audio for audio in files_rirs if audio not in already_selected]
+
+aux_reales_training = random.sample(not_selected, k=int(len(not_selected)*train))
+aux_reales_testing = [audio for audio in not_selected if audio not in aux_reales_training]
+
+
+rirs_for_training = aux_sinteticas_training + aux_aumentadas_training + aux_reales_training
+rirs_for_testing = aux_sinteticas_testing + aux_aumentadas_testing + aux_reales_testing
+
+
+files_speech_train = os.listdir('data/Speech/train') #Audios de voz entrenamiento
+files_speech_test = os.listdir('data/Speech/test') #Audios de voz prueba
 bands = [125, 250, 500, 1000, 2000, 4000, 8000] #Bandas a analizar
 filter_type = 'octave band' #Tipo de filtro a utilizar: 'octave band' o 'third octave band'
 fs = 16000 #Frecuencia de sampleo de los audios.
@@ -55,8 +83,8 @@ drr_aug = [-6, 19, 1] #Aumentar los valores de DRR de -6 a 18 dB con pasos de 1 
 sample_frac = 1.0 #Fracción de la data a leer
 random_state = seed #Inicializador del generador de números random
 
-train = 0.8
-test = 0.2
+#train = 0.8
+#test = 0.2
 
 # Modelo:
 

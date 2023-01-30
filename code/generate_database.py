@@ -20,15 +20,20 @@ from datetime import datetime
 class DataBase():
     """Clase para generar el cálculo de la base de datos para entrenar la red."""
 
-    __slots__ = ('speech_files', 'rir_files', 'tot_sinteticas', 'to_augmentate', 'bands', 'filter_type', 
-                 'fs', 'max_ruido_dB', 'order', 'add_noise', 'snr', 'TR_aug', 'DRR_aug', 'db_name', 'cutoff',
+    __slots__ = ('speech_files_train', 'speech_files_test', 'rir_files', 'tot_sinteticas', 'to_augmentate', 'rirs_for_training', 'rirs_for_testing',  
+                 'bands', 'filter_type','fs', 'max_ruido_dB', 'order', 'add_noise', 'snr', 'TR_aug', 'DRR_aug', 'db_name', 'cutoff',
                  'sos_lowpass_filter', 'TR_variations', 'DRR_variations', 'bpfilter')
     
-    def __init__(self, speech_files, rir_files, tot_sinteticas, to_augmentate,  bands, filter_type, fs, max_ruido_dB, order, add_noise, snr, TR_aug, DRR_aug):
-        self.speech_files = speech_files
+    def __init__(self, speech_files_train, speech_files_test, rir_files, tot_sinteticas, to_augmentate, rirs_for_training, rirs_for_testing, 
+                 bands, filter_type, fs, max_ruido_dB, order, add_noise, snr, TR_aug, DRR_aug):
+        
+        self.speech_files_train = speech_files_train
+        self.speech_files_test = speech_files_test
         self.rir_files = rir_files
         self.tot_sinteticas = tot_sinteticas
         self.to_augmentate = to_augmentate
+        self.rirs_for_training = rirs_for_training
+        self.rirs_for_testing = rirs_for_testing
         self.bands = bands
         self.filter_type = filter_type
         self.fs = fs
@@ -66,306 +71,621 @@ class DataBase():
         else: #Calculo la base de dato si no existe
 
             descriptors_df, name_df, band_df = [], [], []
-            tae_df, snr_df, drr_df = [], [], []
+            tae_df, snr_df, drr_df, speech_data_type_df = [], [], [], []
 
             random.seed(datetime.now()) #Cambio la seed por el horario!
             DRR_tr_aug = random.sample(list(self.TR_variations), k=5)
+
+            if rir_file in self.rirs_for_training: #Si la RIR es del conjunto de training
             
-            for speech_file in self.speech_files: #Por cada audio de voz
+                speech_files = self.speech_files_train
+                speech_data_type = 'train'
 
-                speech_name = speech_file.split('.wav')[0]
-                speech_data, _ = load(f'data/Speech/{speech_file}', sr=self.fs, duration=5.0)
-                speech_data = speech_data/np.max(np.abs(speech_data))
-                
+                for speech_file in speech_files: #Por cada audio de voz
 
-                #Obtengo la rir
-                rir_name = rir_file.split('.wav')[0]
-                rir_data, _ = load(f'data/RIRs/{rir_file}', sr=self.fs)
-                rir_data = rir_data/np.max(np.abs(rir_data))
+                    speech_name = speech_file.split('.wav')[0]
+                    speech_data, _ = load(f'data/Speech/train/{speech_file}', sr=self.fs, duration=5.0)
+                    speech_data = speech_data/np.max(np.abs(speech_data))
 
-                if ('sintetica' in rir_name) or not any(rir_name in s for s in self.to_augmentate): #Si se trata de una RIR sintética o de una de las RIRs que no se eligirieron para aumentar
+                    #else: #Si se trata de un audio para test
+                    #    speech_data, _ = load(f'data/Speech/test/{speech_file}', sr=self.fs, duration=5.0)
+                    #    speech_data = speech_data/np.max(np.abs(speech_data))
+                    #    speech_data_type = 'test'
+                    
 
-                    #Realizo el cálculo para la RIR original:
+                    #Obtengo la rir
+                    rir_name = rir_file.split('.wav')[0]
+                    rir_data, _ = load(f'data/RIRs/{rir_file}', sr=self.fs)
+                    rir_data = rir_data/np.max(np.abs(rir_data))
 
-                    #Reverbero el audio:
-                    reverbed_audio = fftconvolve(speech_data, rir_data, mode='same') #Reverbero el audio
-                    reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
+                    #Si se trata de una RIR sintética o de una de las RIRs que no se eligirieron para aumentar
+                    if ('sintetica' in rir_name) or not any(rir_name in s for s in self.to_augmentate): 
 
-                    filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+                        #Realizo el cálculo para la RIR original:
 
-                    filtered_rir = self.bpfilter.filtered_signals(rir_data) #Filtro la rir por bandas
+                        #Reverbero el audio:
+                        reverbed_audio = fftconvolve(speech_data, rir_data, mode='same') #Reverbero el audio
+                        reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
 
-                    name = f'{speech_name}|{rir_name}|original' #Nombre del archivo en la base de datos
+                        filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
 
-                    for i, band in enumerate(self.bands):
+                        filtered_rir = self.bpfilter.filtered_signals(rir_data) #Filtro la rir por bandas
 
-                        try:
-                            #Calculo los descriptores:
-                            t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
-                            c50 = clarity(50, filtered_rir[i], self.fs)
-                            c80 = clarity(80, filtered_rir[i], self.fs)
-                            d50 = definition(filtered_rir[i], self.fs)
-                            drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+                        name = f'{speech_name}|{rir_name}|original' #Nombre del archivo en la base de datos
 
-                            #Cálculo del tae:
-                            if self.add_noise:
-                                #Genero ruido rosa:
-                                noise_data = pink_noise(len(filtered_speech[i]))
+                        for i, band in enumerate(self.bands):
 
-                                #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
-                                rms_signal = snr_calculator.rms(filtered_speech[i])
-                                rms_noise = snr_calculator.rms(noise_data)
+                            try:
+                                #Calculo los descriptores:
+                                t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                c50 = clarity(50, filtered_rir[i], self.fs)
+                                c80 = clarity(80, filtered_rir[i], self.fs)
+                                d50 = definition(filtered_rir[i], self.fs)
+                                drr, _, _ = get_DRR(filtered_rir[i], self.fs)
 
-                                snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+                                #Cálculo del tae:
+                                if self.add_noise:
+                                    #Genero ruido rosa:
+                                    noise_data = pink_noise(len(filtered_speech[i]))
 
-                                comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+                                    #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                    rms_signal = snr_calculator.rms(filtered_speech[i])
+                                    rms_noise = snr_calculator.rms(noise_data)
 
-                                noise_data_comp = noise_data*comp
+                                    snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
 
-                                reverbed_noisy_audio = reverbed_audio + noise_data_comp
-                                reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+                                    comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
 
-                                tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                snr_df.append(snr_required)
-                            
-                            elif self.add_noise == False:
-                                tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                snr_df.append(nan) 
-                            
+                                    noise_data_comp = noise_data*comp
 
-                            #Guardo los valores:
-                            descriptors_df.append([t30, c50, c80, d50])
-                            name_df.append(name)
-                            band_df.append(band)
-                            tae_df.append(list(tae))
-                            drr_df.append(drr)
-                            
-                        
-                        except (ValueError, NoiseError, Exception) as err:
-                            #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
-                            print(err.args)
-                            continue
+                                    reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                    reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
 
-                else: #Realizo el cálculo en la original y la aumento para las seleccionadas:
-
-                    #Realizo el cálculo para la RIR original:
-
-                    #Reverbero el audio:
-                    reverbed_audio = fftconvolve(speech_data, rir_data, mode='same') #Reverbero el audio
-                    reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
-
-                    filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
-
-                    filtered_rir = self.bpfilter.filtered_signals(rir_data) #Filtro la rir por bandas
-
-                    name = f'{speech_name}|{rir_name}|original' #Nombre del archivo en la base de datos
-
-                    for i, band in enumerate(self.bands):
-
-                        try:
-                            #Calculo los descriptores:
-                            t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
-                            c50 = clarity(50, filtered_rir[i], self.fs)
-                            c80 = clarity(80, filtered_rir[i], self.fs)
-                            d50 = definition(filtered_rir[i], self.fs)
-                            drr, _, _ = get_DRR(filtered_rir[i], self.fs)
-
-                            #Cálculo del tae:
-                            if self.add_noise:
-                                #Genero ruido rosa:
-                                noise_data = pink_noise(len(filtered_speech[i]))
-
-                                #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
-                                rms_signal = snr_calculator.rms(filtered_speech[i])
-                                rms_noise = snr_calculator.rms(noise_data)
-
-                                snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
-
-                                comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
-
-                                noise_data_comp = noise_data*comp
-
-                                reverbed_noisy_audio = reverbed_audio + noise_data_comp
-                                reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
-
-                                tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                snr_df.append(snr_required)
-                            
-                            elif self.add_noise == False:
-                                tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                snr_df.append(nan) 
-                            
-
-                            #Guardo los valores:
-                            descriptors_df.append([t30, c50, c80, d50])
-                            name_df.append(name)
-                            band_df.append(band)
-                            tae_df.append(list(tae))
-                            drr_df.append(drr)
-                            
-                        
-                        except (ValueError, NoiseError, Exception) as err:
-                            #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
-                            #print(err.args)
-                            continue
-
-                    #Realizo el cálculo para las RIR aumentadas:
-
-                    for TR_var in self.TR_variations: #Por cada aumentación de TR
-                        try:
-                            #Realizo la aumentación por TR:
-                            rir_aug = tr_augmentation(rir_data, self.fs, TR_var, self.bpfilter)
-                            rir_aug = rir_aug/np.max(np.abs(rir_aug))
-
-                            #Reverbero el audio en el caso que sea posible aumentar:
-                            reverbed_audio = fftconvolve(speech_data, rir_aug, mode='same') #Reverbero el audio
-                            reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))  
-
-                            filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
-
-                            filtered_rir = self.bpfilter.filtered_signals(rir_aug) #Filtro la rir por bandas
-
-                            name = f'{speech_name}|{rir_name}|TR_var_{TR_var}' #Nombre del archivo en la base de datos
-                            
-                            for i, band in enumerate(self.bands):
-
-                                try:
-                                    #Calculo los descriptores:
-                                    t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
-                                    c50 = clarity(50, filtered_rir[i], self.fs)
-                                    c80 = clarity(80, filtered_rir[i], self.fs)
-                                    d50 = definition(filtered_rir[i], self.fs)
-                                    drr, _, _ = get_DRR(filtered_rir[i], self.fs)
-
-                                    #Cálculo del tae:
-
-                                    if self.add_noise:
-                                        #Genero ruido rosa:
-                                        noise_data = pink_noise(len(filtered_speech[i]))
-
-                                        #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
-                                        rms_signal = snr_calculator.rms(filtered_speech[i])
-                                        rms_noise = snr_calculator.rms(noise_data)
-
-                                        snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
-
-                                        comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
-
-                                        noise_data_comp = noise_data*comp
-
-                                        reverbed_noisy_audio = reverbed_audio + noise_data_comp
-                                        reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
-
-                                        tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                        snr_df.append(snr_required)
-                                    
-                                    elif self.add_noise == False:
-                                        tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                        snr_df.append(nan) 
-                                    
-
-                                    #Guardo los valores:
-                                    descriptors_df.append([t30, c50, c80, d50])
-                                    name_df.append(name)
-                                    band_df.append(band)
-                                    tae_df.append(list(tae))
-                                    drr_df.append(drr)
-
-                                    
+                                    tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(snr_required)
                                 
-                                except (ValueError, NoiseError, Exception) as err:
-                                    #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
-                                    #print(err.args)
-                                    continue
+                                elif self.add_noise == False:
+                                    tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(nan) 
+                                
 
-                            #Al TR aumentado elegido aleatoriamente le aumento el DRR también:
+                                #Guardo los valores:
+                                descriptors_df.append([t30, c50, c80, d50])
+                                name_df.append(name)
+                                band_df.append(band)
+                                tae_df.append(list(tae))
+                                drr_df.append(drr)
+                                speech_data_type_df.append(speech_data_type)
+                                
+                            
+                            except (ValueError, NoiseError, Exception) as err:
+                                #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                print(err.args)
+                                continue
 
-                            if any([True for val in DRR_tr_aug if val == TR_var]): 
+                    else: #Realizo el cálculo en la original y la aumento para las seleccionadas:
 
-                                rir_tr_aug = rir_aug
-                                print(f'TR de los valores a aumentarle el DRR: {DRR_tr_aug}')
+                        #Realizo el cálculo para la RIR original:
 
-                                for DRR_var in self.DRR_variations: #Por cada aumentación de DRR
-                                    print('Aumentando DRR')
+                        #Reverbero el audio:
+                        reverbed_audio = fftconvolve(speech_data, rir_data, mode='same') #Reverbero el audio
+                        reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
+
+                        filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                        filtered_rir = self.bpfilter.filtered_signals(rir_data) #Filtro la rir por bandas
+
+                        name = f'{speech_name}|{rir_name}|original' #Nombre del archivo en la base de datos
+
+                        for i, band in enumerate(self.bands):
+
+                            try:
+                                #Calculo los descriptores:
+                                t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                c50 = clarity(50, filtered_rir[i], self.fs)
+                                c80 = clarity(80, filtered_rir[i], self.fs)
+                                d50 = definition(filtered_rir[i], self.fs)
+                                drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+
+                                #Cálculo del tae:
+                                if self.add_noise:
+                                    #Genero ruido rosa:
+                                    noise_data = pink_noise(len(filtered_speech[i]))
+
+                                    #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                    rms_signal = snr_calculator.rms(filtered_speech[i])
+                                    rms_noise = snr_calculator.rms(noise_data)
+
+                                    snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                    comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                    noise_data_comp = noise_data*comp
+
+                                    reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                    reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                    tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(snr_required)
+                                
+                                elif self.add_noise == False:
+                                    tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(nan) 
+                                
+
+                                #Guardo los valores:
+                                descriptors_df.append([t30, c50, c80, d50])
+                                name_df.append(name)
+                                band_df.append(band)
+                                tae_df.append(list(tae))
+                                drr_df.append(drr)
+                                speech_data_type_df.append(speech_data_type)
+                                
+                            
+                            except (ValueError, NoiseError, Exception) as err:
+                                #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                #print(err.args)
+                                continue
+
+                        #Realizo el cálculo para las RIR aumentadas:
+
+                        for TR_var in self.TR_variations: #Por cada aumentación de TR
+                            try:
+                                #Realizo la aumentación por TR:
+                                rir_aug = tr_augmentation(rir_data, self.fs, TR_var, self.bpfilter)
+                                rir_aug = rir_aug/np.max(np.abs(rir_aug))
+
+                                #Reverbero el audio en el caso que sea posible aumentar:
+                                reverbed_audio = fftconvolve(speech_data, rir_aug, mode='same') #Reverbero el audio
+                                reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))  
+
+                                filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                                filtered_rir = self.bpfilter.filtered_signals(rir_aug) #Filtro la rir por bandas
+
+                                name = f'{speech_name}|{rir_name}|TR_var_{TR_var}' #Nombre del archivo en la base de datos
+                                
+                                for i, band in enumerate(self.bands):
+
                                     try:
-                                        #Realizo la aumentación por TR:
-                                        rir_aug = drr_aug(rir_tr_aug, self.fs, DRR_var)
-                                        rir_aug = rir_aug/np.max(np.abs(rir_aug))
+                                        #Calculo los descriptores:
+                                        t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                        c50 = clarity(50, filtered_rir[i], self.fs)
+                                        c80 = clarity(80, filtered_rir[i], self.fs)
+                                        d50 = definition(filtered_rir[i], self.fs)
+                                        drr, _, _ = get_DRR(filtered_rir[i], self.fs)
 
-                                        #Reverbero el audio en el caso que sea posible aumentar:
-                                        reverbed_audio = fftconvolve(speech_data, rir_aug, mode='same') #Reverbero el audio
-                                        reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))  
+                                        #Cálculo del tae:
 
-                                        filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+                                        if self.add_noise:
+                                            #Genero ruido rosa:
+                                            noise_data = pink_noise(len(filtered_speech[i]))
 
-                                        filtered_rir = self.bpfilter.filtered_signals(rir_aug) #Filtro la rir por bandas
+                                            #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                            rms_signal = snr_calculator.rms(filtered_speech[i])
+                                            rms_noise = snr_calculator.rms(noise_data)
 
-                                        name = f'{speech_name}|{rir_name}|DRR_var_{DRR_var}' #Nombre del archivo en la base de datos
+                                            snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                            comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                            noise_data_comp = noise_data*comp
+
+                                            reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                            reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                            tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                            snr_df.append(snr_required)
                                         
-                                        for i, band in enumerate(self.bands):
+                                        elif self.add_noise == False:
+                                            tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                            snr_df.append(nan) 
+                                        
 
-                                            try:
-                                                #Calculo los descriptores:
-                                                t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
-                                                c50 = clarity(50, filtered_rir[i], self.fs)
-                                                c80 = clarity(80, filtered_rir[i], self.fs)
-                                                d50 = definition(filtered_rir[i], self.fs)
-                                                drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+                                        #Guardo los valores:
+                                        descriptors_df.append([t30, c50, c80, d50])
+                                        name_df.append(name)
+                                        band_df.append(band)
+                                        tae_df.append(list(tae))
+                                        drr_df.append(drr)
+                                        speech_data_type_df.append(speech_data_type)
 
-                                                #Calculo del tae:
-
-                                                if self.add_noise:
-                                                    #Genero ruido rosa:
-                                                    noise_data = pink_noise(len(filtered_speech[i]))
-
-                                                    #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
-                                                    rms_signal = snr_calculator.rms(filtered_speech[i])
-                                                    rms_noise = snr_calculator.rms(noise_data)
-
-                                                    snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
-
-                                                    comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
-
-                                                    noise_data_comp = noise_data*comp
-
-                                                    reverbed_noisy_audio = reverbed_audio + noise_data_comp
-                                                    reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
-
-                                                    tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                                    snr_df.append(snr_required)
-                                                
-                                                elif self.add_noise == False:
-                                                    tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
-                                                    snr_df.append(nan) 
-                                                
-
-                                                #Guardo los valores:
-                                                descriptors_df.append([t30, c50, c80, d50])
-                                                name_df.append(name)
-                                                band_df.append(band)
-                                                tae_df.append(list(tae))
-                                                drr_df.append(drr)
-
-
-                                            except (ValueError, NoiseError, Exception) as err:
-                                                #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
-                                                #print(err.args)
-                                                continue
-
-                                    except Exception as err:
+                                        
+                                    
+                                    except (ValueError, NoiseError, Exception) as err:
+                                        #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
                                         #print(err.args)
                                         continue
-                        
-                        except TrAugmentationError as err:
-                            #print(err.args)
-                            continue
 
+                                #Al TR aumentado elegido aleatoriamente le aumento el DRR también:
+
+                                if any([True for val in DRR_tr_aug if val == TR_var]): 
+
+                                    rir_tr_aug = rir_aug
+                                    print(f'TR de los valores a aumentarle el DRR: {DRR_tr_aug}')
+
+                                    for DRR_var in self.DRR_variations: #Por cada aumentación de DRR
+                                        print('Aumentando DRR')
+                                        try:
+                                            #Realizo la aumentación por TR:
+                                            rir_aug = drr_aug(rir_tr_aug, self.fs, DRR_var)
+                                            rir_aug = rir_aug/np.max(np.abs(rir_aug))
+
+                                            #Reverbero el audio en el caso que sea posible aumentar:
+                                            reverbed_audio = fftconvolve(speech_data, rir_aug, mode='same') #Reverbero el audio
+                                            reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))  
+
+                                            filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                                            filtered_rir = self.bpfilter.filtered_signals(rir_aug) #Filtro la rir por bandas
+
+                                            name = f'{speech_name}|{rir_name}|DRR_var_{DRR_var}' #Nombre del archivo en la base de datos
+                                            
+                                            for i, band in enumerate(self.bands):
+
+                                                try:
+                                                    #Calculo los descriptores:
+                                                    t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                                    c50 = clarity(50, filtered_rir[i], self.fs)
+                                                    c80 = clarity(80, filtered_rir[i], self.fs)
+                                                    d50 = definition(filtered_rir[i], self.fs)
+                                                    drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+
+                                                    #Calculo del tae:
+
+                                                    if self.add_noise:
+                                                        #Genero ruido rosa:
+                                                        noise_data = pink_noise(len(filtered_speech[i]))
+
+                                                        #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                                        rms_signal = snr_calculator.rms(filtered_speech[i])
+                                                        rms_noise = snr_calculator.rms(noise_data)
+
+                                                        snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                                        comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                                        noise_data_comp = noise_data*comp
+
+                                                        reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                                        reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                                        tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                                        snr_df.append(snr_required)
+                                                    
+                                                    elif self.add_noise == False:
+                                                        tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                                        snr_df.append(nan) 
+                                                    
+
+                                                    #Guardo los valores:
+                                                    descriptors_df.append([t30, c50, c80, d50])
+                                                    name_df.append(name)
+                                                    band_df.append(band)
+                                                    tae_df.append(list(tae))
+                                                    drr_df.append(drr)
+                                                    speech_data_type_df.append(speech_data_type)
+
+
+                                                except (ValueError, NoiseError, Exception) as err:
+                                                    #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                                    #print(err.args)
+                                                    continue
+
+                                        except Exception as err:
+                                            #print(err.args)
+                                            continue
+                            
+                            except TrAugmentationError as err:
+                                #print(err.args)
+                                continue
+
+        
+            else: #Si la RIR es del conjunto de testing
+            
+                speech_files = self.speech_files_test
+                speech_data_type = 'test'
+
+                for speech_file in speech_files: #Por cada audio de voz
+
+                    speech_name = speech_file.split('.wav')[0]
+                    speech_data, _ = load(f'data/Speech/test/{speech_file}', sr=self.fs, duration=5.0)
+                    speech_data = speech_data/np.max(np.abs(speech_data))
+                    
+
+                    #Obtengo la rir
+                    rir_name = rir_file.split('.wav')[0]
+                    rir_data, _ = load(f'data/RIRs/{rir_file}', sr=self.fs)
+                    rir_data = rir_data/np.max(np.abs(rir_data))
+
+                    #Si se trata de una RIR sintética o de una de las RIRs que no se eligirieron para aumentar
+                    if ('sintetica' in rir_name) or not any(rir_name in s for s in self.to_augmentate): 
+
+                        #Realizo el cálculo para la RIR original:
+
+                        #Reverbero el audio:
+                        reverbed_audio = fftconvolve(speech_data, rir_data, mode='same') #Reverbero el audio
+                        reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
+
+                        filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                        filtered_rir = self.bpfilter.filtered_signals(rir_data) #Filtro la rir por bandas
+
+                        name = f'{speech_name}|{rir_name}|original' #Nombre del archivo en la base de datos
+
+                        for i, band in enumerate(self.bands):
+
+                            try:
+                                #Calculo los descriptores:
+                                t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                c50 = clarity(50, filtered_rir[i], self.fs)
+                                c80 = clarity(80, filtered_rir[i], self.fs)
+                                d50 = definition(filtered_rir[i], self.fs)
+                                drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+
+                                #Cálculo del tae:
+                                if self.add_noise:
+                                    #Genero ruido rosa:
+                                    noise_data = pink_noise(len(filtered_speech[i]))
+
+                                    #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                    rms_signal = snr_calculator.rms(filtered_speech[i])
+                                    rms_noise = snr_calculator.rms(noise_data)
+
+                                    snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                    comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                    noise_data_comp = noise_data*comp
+
+                                    reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                    reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                    tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(snr_required)
+                                
+                                elif self.add_noise == False:
+                                    tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(nan) 
+                                
+
+                                #Guardo los valores:
+                                descriptors_df.append([t30, c50, c80, d50])
+                                name_df.append(name)
+                                band_df.append(band)
+                                tae_df.append(list(tae))
+                                drr_df.append(drr)
+                                speech_data_type_df.append(speech_data_type)
+                                
+                            
+                            except (ValueError, NoiseError, Exception) as err:
+                                #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                print(err.args)
+                                continue
+
+                    else: #Realizo el cálculo en la original y la aumento para las seleccionadas:
+
+                        #Realizo el cálculo para la RIR original:
+
+                        #Reverbero el audio:
+                        reverbed_audio = fftconvolve(speech_data, rir_data, mode='same') #Reverbero el audio
+                        reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))
+
+                        filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                        filtered_rir = self.bpfilter.filtered_signals(rir_data) #Filtro la rir por bandas
+
+                        name = f'{speech_name}|{rir_name}|original' #Nombre del archivo en la base de datos
+
+                        for i, band in enumerate(self.bands):
+
+                            try:
+                                #Calculo los descriptores:
+                                t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                c50 = clarity(50, filtered_rir[i], self.fs)
+                                c80 = clarity(80, filtered_rir[i], self.fs)
+                                d50 = definition(filtered_rir[i], self.fs)
+                                drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+
+                                #Cálculo del tae:
+                                if self.add_noise:
+                                    #Genero ruido rosa:
+                                    noise_data = pink_noise(len(filtered_speech[i]))
+
+                                    #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                    rms_signal = snr_calculator.rms(filtered_speech[i])
+                                    rms_noise = snr_calculator.rms(noise_data)
+
+                                    snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                    comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                    noise_data_comp = noise_data*comp
+
+                                    reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                    reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                    tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(snr_required)
+                                
+                                elif self.add_noise == False:
+                                    tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                    snr_df.append(nan) 
+                                
+
+                                #Guardo los valores:
+                                descriptors_df.append([t30, c50, c80, d50])
+                                name_df.append(name)
+                                band_df.append(band)
+                                tae_df.append(list(tae))
+                                drr_df.append(drr)
+                                speech_data_type_df.append(speech_data_type)
+                                
+                            
+                            except (ValueError, NoiseError, Exception) as err:
+                                #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                #print(err.args)
+                                continue
+
+                        #Realizo el cálculo para las RIR aumentadas:
+
+                        for TR_var in self.TR_variations: #Por cada aumentación de TR
+                            try:
+                                #Realizo la aumentación por TR:
+                                rir_aug = tr_augmentation(rir_data, self.fs, TR_var, self.bpfilter)
+                                rir_aug = rir_aug/np.max(np.abs(rir_aug))
+
+                                #Reverbero el audio en el caso que sea posible aumentar:
+                                reverbed_audio = fftconvolve(speech_data, rir_aug, mode='same') #Reverbero el audio
+                                reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))  
+
+                                filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                                filtered_rir = self.bpfilter.filtered_signals(rir_aug) #Filtro la rir por bandas
+
+                                name = f'{speech_name}|{rir_name}|TR_var_{TR_var}' #Nombre del archivo en la base de datos
+                                
+                                for i, band in enumerate(self.bands):
+
+                                    try:
+                                        #Calculo los descriptores:
+                                        t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                        c50 = clarity(50, filtered_rir[i], self.fs)
+                                        c80 = clarity(80, filtered_rir[i], self.fs)
+                                        d50 = definition(filtered_rir[i], self.fs)
+                                        drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+
+                                        #Cálculo del tae:
+
+                                        if self.add_noise:
+                                            #Genero ruido rosa:
+                                            noise_data = pink_noise(len(filtered_speech[i]))
+
+                                            #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                            rms_signal = snr_calculator.rms(filtered_speech[i])
+                                            rms_noise = snr_calculator.rms(noise_data)
+
+                                            snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                            comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                            noise_data_comp = noise_data*comp
+
+                                            reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                            reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                            tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                            snr_df.append(snr_required)
+                                        
+                                        elif self.add_noise == False:
+                                            tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                            snr_df.append(nan) 
+                                        
+
+                                        #Guardo los valores:
+                                        descriptors_df.append([t30, c50, c80, d50])
+                                        name_df.append(name)
+                                        band_df.append(band)
+                                        tae_df.append(list(tae))
+                                        drr_df.append(drr)
+                                        speech_data_type_df.append(speech_data_type)
+
+                                        
+                                    
+                                    except (ValueError, NoiseError, Exception) as err:
+                                        #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                        #print(err.args)
+                                        continue
+
+                                #Al TR aumentado elegido aleatoriamente le aumento el DRR también:
+
+                                if any([True for val in DRR_tr_aug if val == TR_var]): 
+
+                                    rir_tr_aug = rir_aug
+                                    print(f'TR de los valores a aumentarle el DRR: {DRR_tr_aug}')
+
+                                    for DRR_var in self.DRR_variations: #Por cada aumentación de DRR
+                                        print('Aumentando DRR')
+                                        try:
+                                            #Realizo la aumentación por TR:
+                                            rir_aug = drr_aug(rir_tr_aug, self.fs, DRR_var)
+                                            rir_aug = rir_aug/np.max(np.abs(rir_aug))
+
+                                            #Reverbero el audio en el caso que sea posible aumentar:
+                                            reverbed_audio = fftconvolve(speech_data, rir_aug, mode='same') #Reverbero el audio
+                                            reverbed_audio = reverbed_audio/np.max(np.abs(reverbed_audio))  
+
+                                            filtered_speech = self.bpfilter.filtered_signals(reverbed_audio) #Filtro la señal de voz por bandas
+
+                                            filtered_rir = self.bpfilter.filtered_signals(rir_aug) #Filtro la rir por bandas
+
+                                            name = f'{speech_name}|{rir_name}|DRR_var_{DRR_var}' #Nombre del archivo en la base de datos
+                                            
+                                            for i, band in enumerate(self.bands):
+
+                                                try:
+                                                    #Calculo los descriptores:
+                                                    t30, _, _ = tr_lundeby(filtered_rir[i], self.fs, self.max_ruido_dB)
+                                                    c50 = clarity(50, filtered_rir[i], self.fs)
+                                                    c80 = clarity(80, filtered_rir[i], self.fs)
+                                                    d50 = definition(filtered_rir[i], self.fs)
+                                                    drr, _, _ = get_DRR(filtered_rir[i], self.fs)
+
+                                                    #Calculo del tae:
+
+                                                    if self.add_noise:
+                                                        #Genero ruido rosa:
+                                                        noise_data = pink_noise(len(filtered_speech[i]))
+
+                                                        #Agrego ruido para tener SNR entre snr[0] y snr[-1] dB:
+                                                        rms_signal = snr_calculator.rms(filtered_speech[i])
+                                                        rms_noise = snr_calculator.rms(noise_data)
+
+                                                        snr_required = np.random.uniform(self.snr[0], self.snr[-1], 1)[0]
+
+                                                        comp = snr_calculator.rms_comp(rms_signal, rms_noise, snr_required)
+
+                                                        noise_data_comp = noise_data*comp
+
+                                                        reverbed_noisy_audio = reverbed_audio + noise_data_comp
+                                                        reverbed_noisy_audio = reverbed_noisy_audio / np.max(np.abs(reverbed_noisy_audio))
+
+                                                        tae = TAE(reverbed_noisy_audio, self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                                        snr_df.append(snr_required)
+                                                    
+                                                    elif self.add_noise == False:
+                                                        tae = TAE(filtered_speech[i], self.fs, self.sos_lowpass_filter) #Calculo el TAE
+                                                        snr_df.append(nan) 
+                                                    
+
+                                                    #Guardo los valores:
+                                                    descriptors_df.append([t30, c50, c80, d50])
+                                                    name_df.append(name)
+                                                    band_df.append(band)
+                                                    tae_df.append(list(tae))
+                                                    drr_df.append(drr)
+                                                    speech_data_type_df.append(speech_data_type)
+
+
+                                                except (ValueError, NoiseError, Exception) as err:
+                                                    #Paso a otra banda si hubo algún error en el cálculo de los descriptores:
+                                                    #print(err.args)
+                                                    continue
+
+                                        except Exception as err:
+                                            #print(err.args)
+                                            continue
+                            
+                            except TrAugmentationError as err:
+                                #print(err.args)
+                                continue
+                            
         print(f'RIR procesada: {rir_name}')
-        return [name_df, band_df, tae_df, descriptors_df, snr_df, drr_df]
+        return [name_df, band_df, tae_df, descriptors_df, snr_df, drr_df, speech_data_type_df]
 
     def save_database_multiprocess(self, results):
         
-        name_df, band_df, tae_df, descriptors_df, snr_df, drr_df = [], [], [], [], [], []
+        name_df, band_df, tae_df, descriptors_df, snr_df, drr_df, speech_data_type_df = [], [], [], [], [], [], []
 
         #Creo la carpeta donde guardo la base de datos:
         os.mkdir(f'cache/{self.db_name}')
@@ -382,6 +702,7 @@ class DataBase():
                 descriptors_df.append(result[3][i])
                 snr_df.append(result[4][i])
                 drr_df.append(result[5][i])
+                speech_data_type_df.append(result[6][i])
         
         #Guardo la base de datos en archivos de a 50000 audios:
         buffer = 50000
@@ -394,7 +715,8 @@ class DataBase():
                     'tae': tae_df,
                     'descriptors': descriptors_df,
                     'snr': snr_df,
-                    'drr': drr_df}
+                    'drr': drr_df,
+                    'type_data': speech_data_type_df}
             
             db_df = pd.DataFrame(data)
 
@@ -409,7 +731,8 @@ class DataBase():
                     'tae': tae_df[int(cut*buffer):int((cut+1)*buffer)],
                     'descriptors': descriptors_df[int(cut*buffer):int((cut+1)*buffer)],
                     'snr': snr_df[int(cut*buffer):int((cut+1)*buffer)],
-                    'drr': drr_df[int(cut*buffer):int((cut+1)*buffer)]}
+                    'drr': drr_df[int(cut*buffer):int((cut+1)*buffer)],
+                    'type_data': speech_data_type_df[int(cut*buffer):int((cut+1)*buffer)]}
             
                 db_df = pd.DataFrame(data)
 
@@ -420,7 +743,8 @@ class DataBase():
                     'tae': tae_df[int(tot_cuts*buffer):],
                     'descriptors': descriptors_df[int(tot_cuts*buffer):],
                     'snr': snr_df[int(tot_cuts*buffer):],
-                    'drr': drr_df[int(tot_cuts*buffer):]}
+                    'drr': drr_df[int(tot_cuts*buffer):],
+                    'type_data': speech_data_type_df[int(tot_cuts*buffer):]}
             
             db_df = pd.DataFrame(data)
 

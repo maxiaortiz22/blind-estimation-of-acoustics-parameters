@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 from code import model, reshape_data, normalize_descriptors, prediction, descriptors_err, save_exp_data
 import concurrent.futures
 import gc
+from numpy import concatenate
 from warnings import filterwarnings
 filterwarnings("ignore")
 
@@ -37,9 +38,9 @@ def main(**kwargs):
 
     #Creo la base de datos si no existe esta configuración en la carpeta cache:
 
-    database = DataBase(config['files_speech'], config['files_rirs'], config['tot_sinteticas'], config['to_augmentate'], config['bands'], 
-                        config['filter_type'], config['fs'], config['max_ruido_dB'], config['order'], config['add_noise'], 
-                        config['snr'], config['tr_aug'], config['drr_aug'])
+    database = DataBase(config['files_speech_train'], config['files_speech_test'], config['files_rirs'], config['tot_sinteticas'], config['to_augmentate'], 
+                        config['rirs_for_training'], config['rirs_for_testing'], config['bands'], config['filter_type'], config['fs'], config['max_ruido_dB'], 
+                        config['order'], config['add_noise'], config['snr'], config['tr_aug'], config['drr_aug'])
 
     db_name = database.get_database_name()
 
@@ -62,22 +63,31 @@ def main(**kwargs):
 
     gc.collect() #Llamo al garbage collector de python
 
+    if True:
+        quit()
+
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
 
         #Leo la fracción de datos especificados para la banda seleccionada:
-        db = read_dataset(band, db_name, config['sample_frac'], config['random_state'])
+        db_train = read_dataset(band, db_name, config['sample_frac'], config['random_state'], type_data='train')
+        db_test = read_dataset(band, db_name, config['sample_frac'], config['random_state'], type_data='test')
 
-        tae = list(db.tae.to_numpy())
-        descriptors = list(db.descriptors.to_numpy())
+        tae_train = list(db_train.tae.to_numpy())
+        tae_test = list(db_test.tae.to_numpy())
+        descriptors_train = list(db_train.descriptors.to_numpy())
+        descriptors_test = list(db_test.descriptors.to_numpy())
 
-        tae, descriptors = reshape_data(tae, descriptors)
+        tae_train, descriptors_train = reshape_data(tae_train, descriptors_train)
+        tae_test, descriptors_test = reshape_data(tae_test, descriptors_test)
 
         #Separo en train y test:
-        X_train, X_test, y_train, y_test = train_test_split(tae, descriptors, test_size=config['test'], random_state=config['random_state'])
+        X_train, _, y_train, _ = train_test_split(tae_train, descriptors_train, train_size=1.0, random_state=config['random_state']) #Separo los valores para entrenar
+        X_test, _, y_test, _ = train_test_split(tae_test, descriptors_test, train_size=1.0, random_state=config['random_state']) #Separo los valores para pruebas
 
         #Normalizo según el percentil 95 de cada descriptor:
+        descriptors = concatenate((descriptors_train, descriptors_test), axis=0)
         y_train, y_test, T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95 = normalize_descriptors(descriptors, y_train, y_test)
 
         #Instancio el modelo:
@@ -104,7 +114,8 @@ def main(**kwargs):
                       X_test, y_test)
 
         # Elimino estas variables de memoria:
-        del db, tae, descriptors, X_train, X_test, y_train, y_test 
+        del db_train, db_test, tae_train, tae_test, descriptors, X_train, X_test, y_train, y_test
+        del descriptors_train, descriptors_test
         del T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95
         del blind_estimation_model, history, predict, err_t30, err_c50, err_c80, err_d50
         gc.collect()

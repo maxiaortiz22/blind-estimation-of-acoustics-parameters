@@ -2,7 +2,7 @@ import pandas as pd
 import os
 from progress.bar import IncrementalBar
 
-def read_dataset(band, db_name, sample_frac=1.0, random_state=None):
+def read_dataset(band, db_name, sample_frac=1.0, random_state=None, type_data='train'):
     """Script para leer la base de datos:
     band (int): banda a leer.
     max_ruido_dB (int): máximo ruido permitido en la base de datos a leer.
@@ -19,7 +19,7 @@ def read_dataset(band, db_name, sample_frac=1.0, random_state=None):
         #Leo la base de datos:
         aux_df = pd.read_pickle(f'cache/{db_name}/{partition}')
         #Filtro por la banda y la fracción de datos que quiero:
-        db = db.append(aux_df.loc[aux_df.banda == band], ignore_index=True)
+        db = db.append(aux_df.loc[(aux_df.banda == band) & (aux_df.type_data == type_data)], ignore_index=True)
         bar.next()
     
     db = db.sample(frac=sample_frac, random_state=random_state)

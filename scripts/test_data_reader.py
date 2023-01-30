@@ -34,7 +34,8 @@ if __name__ == '__main__':
     db_name = f'base_de_datos_{max_ruido_dB}_noise_{add_noise}_traug_{tr_aug[0]}_{tr_aug[1]}_{tr_aug[2]}_drraug_{drr_aug[0]}_{drr_aug[1]}_{drr_aug[2]}_snr_{snr[0]}_{snr[-1]}'
 
     for band in bands:
-        db = read_dataset(band, db_name, 1.0, seed)
+        db = read_dataset(band, db_name, 1.0, seed, 'train')
         print(len(db))
+        print(db.head())
 
     print("--- %s seconds ---" % (time.time() - start_time))
