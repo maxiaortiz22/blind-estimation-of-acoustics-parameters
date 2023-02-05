@@ -79,15 +79,12 @@ def main(**kwargs):
         descriptors_train = list(db_train.descriptors.to_numpy())
         descriptors_test = list(db_test.descriptors.to_numpy())
 
-        tae_train, descriptors_train = reshape_data(tae_train, descriptors_train)
-        tae_test, descriptors_test = reshape_data(tae_test, descriptors_test)
-
-        #Separo en train y test:
-        X_train, _, y_train, _ = train_test_split(tae_train, descriptors_train, train_size=1.0, random_state=config['random_state']) #Separo los valores para entrenar
-        X_test, _, y_test, _ = train_test_split(tae_test, descriptors_test, train_size=1.0, random_state=config['random_state']) #Separo los valores para pruebas
+        #Separo en train y test y les doy formato:
+        X_train, y_train = reshape_data(tae_train, descriptors_train)
+        X_test, y_test = reshape_data(tae_test, descriptors_test)
 
         #Normalizo según el percentil 95 de cada descriptor:
-        descriptors = concatenate((descriptors_train, descriptors_test), axis=0)
+        descriptors = concatenate((y_train, y_test), axis=0)
         y_train, y_test, T30_perc_95, C50_perc_95, C80_perc_95, D50_perc_95 = normalize_descriptors(descriptors, y_train, y_test)
 
         #Instancio el modelo:
