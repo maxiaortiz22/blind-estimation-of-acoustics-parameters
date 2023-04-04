@@ -6,6 +6,8 @@ data/RIRs/*.wav
 #results/
 dataframes/*.csv
 cache/base_de_datos*
+cache/exp*
+cache/exp*/*.pkl
 cache/base_de_datos*/*.pkl
 results/**/*.pickle
 results/**/*.h5

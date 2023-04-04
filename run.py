@@ -62,10 +62,7 @@ def main(**kwargs):
     del database #Elimino el objeto de la base de datos de memoria
 
     gc.collect() #Llamo al garbage collector de python
-
-    if True:
-        quit()
-
+        
     #Entrenamiento:
     for band in config['bands']:
         print(f'\nInicio entrenamiento de la banda {band} Hz:')
