@@ -1,4 +1,4 @@
-# Estimación ciega de parámetros acústicos de un recinto - 10/2022
+# Estimación ciega de parámetros acústicos de un recinto - 06/2023
 
 Tesis de grado para optar por el título de Ingeniero de Sonido.
 
